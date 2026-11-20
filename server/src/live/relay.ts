@@ -123,6 +123,13 @@ async function handle(ws: WebSocket, _req: IncomingMessage, url: URL) {
   const repo = await getRepo(viva.repoId);
   if (!repo?.analysis) return fail("We couldn't find the project for this viva.", 4004);
   active.set(key, ws);
+  // Diagnostics: one line when a session opens, when the examiner first speaks, and when it closes.
+  const openedAt = Date.now();
+  const secs = () => ((Date.now() - openedAt) / 1000).toFixed(1);
+  const tag = `${mode} ${vivaId.slice(0, 8)}`;
+  let micFrames = 0;
+  let audioOut = 0;
+  console.log(`[relay] ${tag} connected`);
   const practice = vivaMode(viva) === "practice";
 
   /* ---------------- state recorded by the server ---------------- */
@@ -214,6 +221,7 @@ async function handle(ws: WebSocket, _req: IncomingMessage, url: URL) {
         if (!aiTurnStartedAt) aiTurnStartedAt = Date.now();
         aiTurnAudioBytes += Math.floor((part.inlineData.data.length * 3) / 4);
         send({ t: "audio", d: part.inlineData.data });
+        if (audioOut++ === 0) console.log(`[relay] ${tag} first examiner audio after ${secs()}s`);
       }
     }
     if (sc.outputTranscription?.text) {
@@ -273,7 +281,10 @@ async function handle(ws: WebSocket, _req: IncomingMessage, url: URL) {
     ws.close(4013, "Ended after integrity violations");
   };
 
-  ws.on("close", () => void cleanup());
+  ws.on("close", (code) => {
+    console.log(`[relay] ${tag} closed (code ${code}) after ${secs()}s: ${micFrames} mic frames in, ${audioOut} examiner audio chunks out`);
+    void cleanup();
+  });
   ws.on("message", (raw: RawData) => {
     let msg: { t?: string; d?: unknown; kind?: string; detail?: unknown };
     try {
@@ -282,6 +293,7 @@ async function handle(ws: WebSocket, _req: IncomingMessage, url: URL) {
       return;
     }
     if (msg.t === "audio" && typeof msg.d === "string" && msg.d.length <= 64_000) {
+      micFrames++;
       session?.sendRealtimeInput({ audio: { data: msg.d, mimeType: "audio/pcm;rate=16000" } });
     } else if (msg.t === "audioEnd") {
       session?.sendRealtimeInput({ audioStreamEnd: true });
