@@ -3,7 +3,7 @@
 # ---------- build ----------
 FROM node:24-slim AS build
 WORKDIR /app
-COPY package.json package-lock.json ./
+COPY package*.json ./
 COPY server/package.json server/
 COPY web/package.json web/
 # `npm install` (not `ci`) so Linux-only native binaries (esbuild, rolldown, lightningcss) are resolved
@@ -17,7 +17,7 @@ RUN npm run build
 FROM node:24-slim
 ENV NODE_ENV=production
 WORKDIR /app
-COPY package.json package-lock.json ./
+COPY package*.json ./
 COPY server/package.json server/
 COPY web/package.json web/
 RUN npm install --omit=dev --workspace server --include-workspace-root=false --no-audit --no-fund

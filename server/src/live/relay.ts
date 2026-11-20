@@ -2,7 +2,7 @@ import type { IncomingMessage, Server } from "node:http";
 import { WebSocketServer, WebSocket, type RawData } from "ws";
 import { FunctionResponseScheduling, type LiveServerMessage, type Session } from "@google/genai";
 import { gemini, LIVE_MODEL } from "../gemini.js";
-import { buildVivaInstruction, LANGUAGE_RULE, liveConfig, projectVocabulary, VIVA_STAGES, VIVA_TOOLS } from "../ai/live.js";
+import { buildVivaInstruction, LANGUAGE_RULE, liveConfig, projectVocabulary, VIVA_STAGES, VIVA_TOOLS, WARMUP_INSTRUCTION } from "../ai/live.js";
 import { buildBugHuntInstruction } from "../ai/bugHunt.js";
 import { getDoc, getRepo, putDoc } from "../store.js";
 import type { VivaDoc, VivaTurn } from "../routes/viva.js";
@@ -42,13 +42,77 @@ export function attachLiveRelay(server: Server): void {
 
 async function handle(ws: WebSocket, _req: IncomingMessage, url: URL) {
   const vivaId = url.searchParams.get("vivaId") ?? "";
-  const mode = url.searchParams.get("mode") === "bug" ? "bug" : "viva";
+  const rawMode = url.searchParams.get("mode");
+  const mode = rawMode === "bug" ? "bug" : rawMode === "warmup" ? "warmup" : "viva";
   const key = `${vivaId}:${mode}`;
   const send = (m: object) => ws.readyState === WebSocket.OPEN && ws.send(JSON.stringify(m));
   const fail = (message: string, code = 4000) => {
     send({ t: "error", message });
     ws.close(code, message.slice(0, 120));
   };
+
+  if (mode === "warmup") {
+    let session: Session | null = null;
+    let finished = false;
+    const pinger = setInterval(() => ws.readyState === WebSocket.OPEN && ws.ping(), 20_000);
+    const cap = setTimeout(() => fail("The warm-up reached its time limit.", 4008), MAX_SESSION_MS);
+    const cleanup = () => {
+      clearInterval(pinger);
+      clearTimeout(cap);
+      try {
+        session?.close();
+      } catch {
+        /* already closed */
+      }
+      session = null;
+    };
+    ws.on("close", cleanup);
+    ws.on("message", (raw: RawData) => {
+      let msg: { t?: string; d?: unknown };
+      try {
+        msg = JSON.parse(raw.toString());
+      } catch {
+        return;
+      }
+      if (msg.t === "audio" && typeof msg.d === "string" && msg.d.length <= 64_000) {
+        session?.sendRealtimeInput({ audio: { data: msg.d, mimeType: "audio/pcm;rate=16000" } });
+      } else if (msg.t === "audioEnd") {
+        session?.sendRealtimeInput({ audioStreamEnd: true });
+      }
+    });
+    try {
+      session = await gemini().live.connect({
+        model: LIVE_MODEL,
+        config: liveConfig(WARMUP_INSTRUCTION),
+        callbacks: {
+          onmessage: (m: LiveServerMessage) => {
+            const sc = m.serverContent;
+            if (!sc) return;
+            if (sc.interrupted) send({ t: "interrupted" });
+            for (const part of sc.modelTurn?.parts ?? []) {
+              if (part.inlineData?.data) send({ t: "audio", d: part.inlineData.data });
+            }
+            if (sc.outputTranscription?.text) send({ t: "out", d: sc.outputTranscription.text });
+            if (sc.inputTranscription?.text) send({ t: "in", d: sc.inputTranscription.text });
+            if (sc.turnComplete) send({ t: "turn" });
+          },
+          onerror: (e) => console.error("[relay:warmup] gemini error", (e as ErrorEvent).message ?? e),
+          onclose: (e) => {
+            if (finished || ws.readyState !== WebSocket.OPEN) return;
+            finished = true;
+            fail(e.code === 1000 ? "The session ended." : "The voice connection dropped. Let's pick it back up.", 4011);
+          },
+        },
+      });
+      if (ws.readyState !== WebSocket.OPEN) return cleanup();
+      session.sendRealtimeInput({ text: "Hi, I'm ready to start." });
+      send({ t: "ready", stage: "warmup" });
+    } catch (err) {
+      console.error("[relay:warmup] connect failed", err);
+      fail("We couldn't reach the examiner. Please try again.", 4012);
+    }
+    return;
+  }
 
   const viva = await getDoc<VivaDoc>("vivas", vivaId);
   if (!viva) return fail("We couldn't find that viva.", 4004);

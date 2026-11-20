@@ -1,12 +1,11 @@
 import { GoogleGenAI, ThinkingLevel, type Schema } from "@google/genai";
 
-// Model names verified against ai.google.dev/gemini-api/docs/models (Nov 2026).
+// Active Gemini models.
 export const LIVE_MODEL = process.env.GEMINI_LIVE_MODEL || "gemini-3.8-live";
-export const TEXT_MODEL = process.env.GEMINI_TEXT_MODEL || "gemini-3.8-flash";
+export const TEXT_MODEL = process.env.GEMINI_TEXT_MODEL || "gemini-4-hydrogen";
 
 // Used when the main model is overloaded (503), rate-limited (429) or too slow to start.
-// 3.5 Flash-Lite stays responsive under load and still writes well-grounded questions.
-export const TEXT_FALLBACK_MODEL = process.env.GEMINI_TEXT_FALLBACK_MODEL || "gemini-3.5-flash-lite";
+export const TEXT_FALLBACK_MODEL = process.env.GEMINI_TEXT_FALLBACK_MODEL || "gemini-3.1-flash-lite";
 
 /**
  * Circuit breaker: once the main model fails with an overload/timeout, skip it for a while
@@ -181,7 +180,6 @@ export async function generateJson<T>(opts: {
             responseMimeType: "application/json",
             responseSchema: opts.schema,
             thinkingConfig: { thinkingLevel: opts.thinking ?? ThinkingLevel.LOW },
-            temperature: 0.4,
             abortSignal: deadline.signal,
           },
         });
@@ -206,11 +204,16 @@ let client: GoogleGenAI | null = null;
 /** Server-only Gemini client. The API key never leaves this process. */
 export function gemini(): GoogleGenAI {
   if (!process.env.GEMINI_API_KEY) {
-    throw new Error("GEMINI_API_KEY is not set in server/.env");
+    throw new Error("GEMINI_API_KEY is not set");
   }
   client ??= new GoogleGenAI({
     apiKey: process.env.GEMINI_API_KEY,
-    httpOptions: { apiVersion: "v1beta" },
+    httpOptions: {
+      apiVersion: "v1beta",
+      headers: {
+        "User-Agent": "aistudio-build",
+      },
+    },
   });
   return client;
 }

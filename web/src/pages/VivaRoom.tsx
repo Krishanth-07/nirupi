@@ -72,7 +72,7 @@ export default function VivaRoom() {
             },
             onToolCall,
           }
-        : { getToken: getWarmupToken },
+        : { relay: async () => "/api/live?mode=warmup" },
     );
   }, [isViva, repoId, live, onToolCall]);
 
@@ -212,13 +212,6 @@ export default function VivaRoom() {
       </main>
     </div>
   );
-}
-
-async function getWarmupToken() {
-  const res = await fetch("/api/live-token", { method: "POST" });
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok || !body.token) throw new Error(body.error || "Token request failed");
-  return body as { token: string; model: string };
 }
 
 function IdleIntro({ isViva, onStart }: { isViva: boolean; onStart: () => void }) {

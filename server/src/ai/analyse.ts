@@ -212,7 +212,6 @@ async function generateOnce(model: string, prompt: string, hooks: AnalyseHooks):
         responseMimeType: "application/json",
         responseSchema: schema,
         thinkingConfig: { thinkingLevel: THINKING },
-        temperature: 0.4,
         abortSignal: deadline.signal,
       },
     });

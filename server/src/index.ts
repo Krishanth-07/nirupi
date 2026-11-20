@@ -32,9 +32,9 @@ if (existsSync(webDist)) {
   app.get(/^(?!\/api).*/, (_req, res) => res.sendFile(path.join(webDist, "index.html")));
 }
 
-const port = Number(process.env.PORT) || 8080;
-const server = app.listen(port, () => {
-  console.log(`Nirupi server on http://localhost:${port} (storage: ${storeKind})`);
+const port = Number(process.env.PORT) || 3000;
+const server = app.listen(port, "0.0.0.0", () => {
+  console.log(`Nirupi server on http://0.0.0.0:${port} (storage: ${storeKind})`);
   // Prepare the demo project in the background so "Try demo" is instant.
   void probeMainModel().finally(() => ensureDemo().catch(() => {}));
 });

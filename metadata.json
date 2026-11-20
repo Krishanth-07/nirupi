@@ -1,5 +1,6 @@
 {
   "name": "Nirupi",
   "description": "Prove you built it. Defend your own GitHub project in a live AI voice viva, then fix a bug in your own code.",
-  "requestFramePermissions": ["microphone"]
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

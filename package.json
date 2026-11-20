@@ -4,14 +4,12 @@
   "version": "0.1.0",
   "workspaces": ["server", "web"],
   "scripts": {
-    "dev": "concurrently -k -n server,web -c blue,green \"npm:dev -w server\" \"npm:dev -w web\"",
-    "build": "npm run build -w web && npm run build -w server",
-    "start": "npm run start -w server"
+    "dev": "npm run build && node server/dist/index.js",
+    "build": "npm run build -w nirupi-web && npm run build -w nirupi-server",
+    "start": "node server/dist/index.js",
+    "lint": "npm run lint -w nirupi-server && npm run lint -w nirupi-web"
   },
   "devDependencies": {
     "concurrently": "^10.0.7"
-  },
-  "optionalDependencies": {
-    "@esbuild/win32-x64": "0.28.2"
   }
 }

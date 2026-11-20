@@ -22,12 +22,7 @@ gcloud config set project "$PROJECT_ID" >/dev/null
 
 echo "==> Enabling APIs (first run takes a minute)"
 gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com \
-  firestore.googleapis.com secretmanager.googleapis.com >/dev/null
-
-echo "==> Firestore (Native mode) in $REGION"
-if ! gcloud firestore databases describe --database="(default)" >/dev/null 2>&1; then
-  gcloud firestore databases create --database="(default)" --location="$REGION" --type=firestore-native
-fi
+  secretmanager.googleapis.com >/dev/null
 
 echo "==> Secrets"
 SECRET_FLAGS=()
@@ -46,15 +41,13 @@ done
 echo "==> Permissions for the Cloud Run service account"
 PROJECT_NUMBER="$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')"
 RUN_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
-for ROLE in roles/datastore.user roles/secretmanager.secretAccessor; do
-  gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="serviceAccount:$RUN_SA" --role="$ROLE" --condition=None >/dev/null
-done
+gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="serviceAccount:$RUN_SA" --role="roles/secretmanager.secretAccessor" --condition=None >/dev/null
 
 echo "==> Building and deploying (Cloud Build uses the Dockerfile; ~5 minutes)"
 # Why these flags:
 #   --timeout 3600            voice sessions are long-lived WebSockets
 #   --session-affinity        keep a student's requests on the same instance
-#   --max-instances 1         the relay and in-progress state live in one process (fine for a prototype)
+#   --max-instances 1         the relay and local storage live in one process (fine for a prototype)
 #   --min-instances 1         no cold start for judges; demo stays prepared
 #   --no-cpu-throttling       background work (bug-hunt prep, git evidence) runs after responses
 gcloud run deploy "$SERVICE" \
@@ -68,7 +61,7 @@ gcloud run deploy "$SERVICE" \
   --no-cpu-throttling \
   --cpu 1 \
   --memory 1Gi \
-  --set-env-vars "FIREBASE_PROJECT_ID=$PROJECT_ID,DEMO_REPO_URL=$DEMO_REPO_URL" \
+  --set-env-vars "DEMO_REPO_URL=$DEMO_REPO_URL" \
   --set-secrets "$(IFS=,; echo "${SECRET_FLAGS[*]}")"
 
 URL="$(gcloud run services describe "$SERVICE" --region "$REGION" --format='value(status.url)')"

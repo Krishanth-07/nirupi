@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FunctionResponseScheduling, GoogleGenAI, Modality, type LiveServerMessage, type Session } from "@google/genai";
 import { AudioCapture } from "./audioCapture";
 import { AudioPlayer } from "./audioPlayer";
 
@@ -24,14 +23,10 @@ export interface LiveError {
 
 export interface StartOptions {
   /**
-   * Relay mode (viva, bug hunt): returns the /api/live URL. The server holds the Gemini session and
-   * records the transcript itself, so the browser can't alter it.
+   * Server relay URL (e.g. /api/live?mode=warmup or /api/live?vivaId=...&mode=viva).
+   * The server holds the Gemini session and records the transcript itself.
    */
-  relay?: () => Promise<string>;
-  /** Direct mode (warm-up only): a short-lived token from our server. */
-  getToken?: () => Promise<{ token: string; model: string }>;
-  /** Direct mode only: text sent once connected so the examiner speaks first. */
-  kickoff?: string;
+  relay: () => Promise<string>;
   /** The examiner moved to a new stage or finished (set_stage / finish_viva). */
   onToolCall?: (name: string, args: Record<string, unknown>) => void;
 }
@@ -191,48 +186,6 @@ export function useLiveSession() {
     [appendText, closeOpenTurns, dropped, teardown],
   );
 
-  /* ---------------- direct transport (warm-up only) ---------------- */
-  const connectDirect = useCallback(
-    async (getToken: NonNullable<StartOptions["getToken"]>, kickoff?: string): Promise<Transport> => {
-      const { token, model } = await getToken();
-      const ai = new GoogleGenAI({ apiKey: token, httpOptions: { apiVersion: "v1beta" } });
-      let session: Session | null = null;
-      const onmessage = (msg: LiveServerMessage) => {
-        if (msg.toolCall?.functionCalls) {
-          session?.sendToolResponse({
-            functionResponses: msg.toolCall.functionCalls.map((fc) => ({
-              id: fc.id,
-              name: fc.name,
-              response: { result: "ok", scheduling: FunctionResponseScheduling.SILENT },
-            })),
-          });
-          for (const fc of msg.toolCall.functionCalls) toolRef.current?.(fc.name ?? "", (fc.args as Record<string, unknown>) ?? {});
-        }
-        const sc = msg.serverContent;
-        if (!sc) return;
-        if (sc.interrupted) playerRef.current?.flush();
-        for (const part of sc.modelTurn?.parts ?? []) if (part.inlineData?.data) playerRef.current?.play(part.inlineData.data);
-        if (sc.inputTranscription?.text) appendText("student", sc.inputTranscription.text);
-        if (sc.outputTranscription?.text) appendText("ai", sc.outputTranscription.text);
-        if (sc.turnComplete) closeOpenTurns();
-      };
-      session = await ai.live.connect({
-        model,
-        config: { responseModalities: [Modality.AUDIO] },
-        callbacks: { onmessage, onerror: (e) => console.error("[live] error", e), onclose: () => dropped() },
-      });
-      session.sendRealtimeInput({ text: kickoff ?? "Hi, I'm ready to start." });
-      const s = session;
-      return {
-        sendAudio: (d) => s.sendRealtimeInput({ audio: { data: d, mimeType: "audio/pcm;rate=16000" } }),
-        audioEnd: () => s.sendRealtimeInput({ audioStreamEnd: true }),
-        integrity: () => {},
-        close: () => s.close(),
-      };
-    },
-    [appendText, closeOpenTurns, dropped],
-  );
-
   const start = useCallback(
     async (opts: StartOptions) => {
       endingRef.current = false;
@@ -266,10 +219,8 @@ export function useLiveSession() {
       await player.resume();
 
       try {
-        // 2. Connect: through our server (viva, bug hunt) or directly with a token (warm-up).
-        const transport = opts.relay
-          ? await connectRelay(await opts.relay())
-          : await connectDirect(opts.getToken!, opts.kickoff);
+        // 2. Connect through the server-side voice relay.
+        const transport = await connectRelay(await opts.relay());
         transportRef.current = transport;
 
         // 3. Stream mic frames.
@@ -294,7 +245,7 @@ export function useLiveSession() {
         });
       }
     },
-    [connectRelay, connectDirect, teardown],
+    [connectRelay, teardown],
   );
 
   const end = useCallback(() => {
