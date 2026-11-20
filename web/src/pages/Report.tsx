@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion, useTransform } from "framer-motion";
-import { Check, ChevronDown, Copy, ExternalLink, RotateCcw } from "lucide-react";
+import { Check, ChevronDown, Copy, ExternalLink, RotateCcw, ShieldAlert } from "lucide-react";
 import { Logo } from "../components/ui/Logo";
 import { Button } from "../components/ui/Button";
 import { Cite } from "../components/ui/Cite";
@@ -149,8 +149,19 @@ function ReportSheet({ r }: { r: ReportData }) {
                 <span className={`size-2 rounded-full ${verdict.dot}`} />
                 {verdict.label}
               </span>
-              {r.vivaStatus !== "completed" && <span className="text-small text-muted">The viva ended before every question was finished.</span>}
+              {r.vivaStatus !== "completed" && !r.integrity?.terminated && (
+                <span className="text-small text-muted">The viva ended before every question was finished.</span>
+              )}
             </div>
+            {r.integrity?.status === "flagged" && (
+              <div role="alert" className="flex gap-3 rounded-ctl bg-bad-soft px-4 py-3 text-[#8c1d18]">
+                <ShieldAlert size={20} strokeWidth={1.5} className="mt-0.5 shrink-0" />
+                <p>
+                  <span className="font-semibold">Integrity flagged.</span> The viva was ended after {r.integrity.terminated?.violations ?? r.integrity.violations}{" "}
+                  violations (leaving the exam window, full screen or the page). Review the details below before relying on these scores.
+                </p>
+              </div>
+            )}
           </div>
         </Row>
 
@@ -341,7 +352,7 @@ function IntegritySection({ r }: { r: ReportData }) {
           {stat("Tab switches", i?.tabSwitches ?? 0, (i?.tabSwitches ?? 0) > 0)}
           {stat("Seconds away", i?.secondsAway ?? 0, (i?.secondsAway ?? 0) >= 3)}
           {stat("Full-screen exits", i?.fullscreenExits ?? 0, (i?.fullscreenExits ?? 0) > 0)}
-          {stat("Paste attempts", i?.pasteAttempts ?? 0, (i?.pasteAttempts ?? 0) > 0)}
+          {stat(`Violations (limit ${i?.maxViolations ?? 3})`, i?.violations ?? 0, (i?.violations ?? 0) > 0)}
         </div>
         {delays.length > 0 && (
           <p className="mt-4 text-small text-muted">

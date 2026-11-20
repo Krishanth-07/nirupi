@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { CheckCircle2, FolderGit2, Headphones, Mic, MicOff, RotateCcw, WifiOff } from "lucide-react";
+import { CheckCircle2, FolderGit2, Headphones, Mic, MicOff, RotateCcw, ShieldAlert, WifiOff } from "lucide-react";
 import { Logo } from "../components/ui/Logo";
 import { Button } from "../components/ui/Button";
 import { VoiceOrb } from "../components/viva/VoiceOrb";
@@ -11,7 +11,7 @@ import { ControlBar, MicPill } from "../components/viva/ControlBar";
 import { useLiveSession, type LiveError, type Speaker } from "../lib/live/useLiveSession";
 import { liveRelayPath, startViva, type VivaStart } from "../lib/api";
 import { enterExamMode, exitExamMode, useIntegrity } from "../lib/integrity";
-import { ExamPauseOverlay, ExamRules, RulesConsent } from "../components/viva/ExamRules";
+import { ExamRules, ExamWarningOverlay, RulesConsent } from "../components/viva/ExamRules";
 
 const STAGE_ORDER = ["warmup", "q1", "q2", "q3", "done"];
 
@@ -77,7 +77,7 @@ export default function VivaRoom() {
   }, [isViva, repoId, live, onToolCall]);
 
   // Exam mode: tab switches, window focus and full-screen exits go to the server while the viva is live.
-  const exam = useIntegrity(isViva && live.status === "live", live.reportIntegrity);
+  const exam = useIntegrity(isViva && live.status === "live", live.reportIntegrity, live.violations);
   useEffect(() => {
     if (live.status === "ended" || live.status === "error") void exitExamMode();
   }, [live.status]);
@@ -105,7 +105,7 @@ export default function VivaRoom() {
   return (
     <div className="flex min-h-dvh flex-col lg:h-dvh">
       <header className="mx-auto flex w-full max-w-[1100px] items-center justify-between gap-4 px-4 py-4 sm:px-6">
-        <Logo />
+        <Logo disabled={isViva && live.status === "live"} />
         <div className="flex items-center gap-3">
           {live.status === "live" && <Elapsed since={live.startedAt} />}
           {live.status === "live" && <MicPill muted={live.muted} speaking={speaker === "student"} />}
@@ -140,7 +140,14 @@ export default function VivaRoom() {
             </motion.span>
           )}
 
-          <ExamPauseOverlay open={exam.leftFullscreen} problem={exam.fullscreenProblem} onReturn={exam.returnToFullscreen} onDismiss={exam.dismiss} />
+          <ExamWarningOverlay
+            open={exam.warningOpen}
+            reason={exam.reason}
+            count={exam.violations.count}
+            max={exam.violations.max}
+            problem={exam.fullscreenProblem}
+            onResume={exam.resume}
+          />
 
           <VoiceOrb status={live.status} getLevels={live.getLevels} onSpeakerChange={setSpeaker} />
 
@@ -187,7 +194,13 @@ export default function VivaRoom() {
                   reportHref={vivaIdRef.current ? `/report/${encodeURIComponent(vivaIdRef.current)}` : undefined}
                 />
               )}
-              {live.status === "error" && live.error && <ErrorCard error={live.error} onRetry={begin} />}
+              {live.status === "error" && live.error && (
+                <ErrorCard
+                  error={live.error}
+                  onRetry={begin}
+                  reportHref={vivaIdRef.current ? `/report/${encodeURIComponent(vivaIdRef.current)}` : undefined}
+                />
+              )}
             </motion.div>
           </AnimatePresence>
         </section>
@@ -325,8 +338,29 @@ function EndedCard({
   );
 }
 
-function ErrorCard({ error, onRetry }: { error: LiveError; onRetry: () => void }) {
+function ErrorCard({ error, onRetry, reportHref }: { error: LiveError; onRetry: () => void; reportHref?: string }) {
   const isMic = error.kind === "mic";
+  if (error.kind === "terminated") {
+    return (
+      <>
+        <div className="flex flex-col items-center gap-3">
+          <span className="grid size-11 place-items-center rounded-full bg-bad-soft text-[#b3261e]">
+            <ShieldAlert size={20} strokeWidth={1.5} />
+          </span>
+          <h2 className="font-heading text-h2">Viva ended</h2>
+          <p className="text-muted">{error.message}</p>
+        </div>
+        {reportHref && (
+          <Link
+            to={reportHref}
+            className="inline-flex h-12 items-center justify-center rounded-ctl bg-accent-strong px-6 font-semibold text-white shadow-soft hover:bg-[#1765cc]"
+          >
+            See the report
+          </Link>
+        )}
+      </>
+    );
+  }
   return (
     <>
       <div className="flex flex-col items-center gap-3">

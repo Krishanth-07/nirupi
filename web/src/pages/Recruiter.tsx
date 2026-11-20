@@ -165,7 +165,7 @@ export default function Recruiter() {
                         <th className="px-3 py-3 font-medium">Ownership</th>
                         <th className="px-3 py-3 font-medium">Bug hunt</th>
                         <SortHead label="Owner's commits" k="ownerShare" sort={sort} onSort={toggleSort} />
-                        <SortHead label="Signals" k="flags" sort={sort} onSort={toggleSort} />
+                        <SortHead label="Integrity" k="flags" sort={sort} onSort={toggleSort} />
                         <SortHead label="Date" k="createdAt" sort={sort} onSort={toggleSort} />
                       </tr>
                     </thead>
@@ -188,7 +188,7 @@ export default function Recruiter() {
                           <td className="px-3 py-4 text-small">{BUG[r.bug]}</td>
                           <td className="px-3 py-4 text-small">{gitLabel(r)}</td>
                           <td className="px-3 py-4">
-                            <Signals flags={r.flags} />
+                            <Signals flags={r.flags} integrity={r.integrity} />
                           </td>
                           <td className="px-3 py-4 text-small whitespace-nowrap text-muted">{new Date(r.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</td>
                         </tr>
@@ -279,8 +279,25 @@ function Unscored() {
   return <span className="text-small text-muted">Not scored yet</span>;
 }
 
-function Signals({ flags }: { flags: string[] }) {
-  if (!flags.length) return <span className="text-small text-muted">None</span>;
+function Signals({ flags, integrity }: { flags: string[]; integrity: CandidateRow["integrity"] }) {
+  const badge =
+    integrity === "flagged" ? (
+      <Pill label="Flagged" tone="bg-bad-soft text-[#b3261e]" />
+    ) : integrity === "warnings" ? (
+      <Pill label="Warnings" tone="bg-warn-soft text-[#8a5300]" />
+    ) : integrity === "clear" ? (
+      <Pill label="Clear" tone="bg-good-soft text-[#137333]" />
+    ) : null;
+  if (!flags.length) return badge ?? <span className="text-small text-muted">None</span>;
+  return (
+    <div className="flex flex-col items-start gap-1.5">
+      {badge}
+      <SignalList flags={flags} />
+    </div>
+  );
+}
+
+function SignalList({ flags }: { flags: string[] }) {
   return (
     <details className="text-small">
       <summary className="font-medium text-[#8a5300]">

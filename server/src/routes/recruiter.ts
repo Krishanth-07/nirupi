@@ -46,6 +46,7 @@ recruiterRouter.get("/recruiter/candidates", async (req, res) => {
         ? { ownerShare: r.git.ownerCommitShare ?? null, isFork: r.git.isFork, commits: r.git.totalCommits ?? null }
         : null,
       flags: [...(r.integrity?.flags ?? []), ...(r.git?.flags ?? [])],
+      integrity: r.integrity?.status ?? null,
       stale: r.scoringVersion !== SCORING_VERSION,
     }));
 
@@ -68,6 +69,7 @@ recruiterRouter.get("/recruiter/candidates", async (req, res) => {
       isDemo: v.repoId.startsWith("demo__"),
       git: null,
       flags: [],
+      integrity: v.integrity?.terminated ? ("flagged" as const) : null,
       stale: false,
     }));
 

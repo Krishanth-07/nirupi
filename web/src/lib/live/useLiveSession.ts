@@ -5,7 +5,7 @@ import { AudioPlayer } from "./audioPlayer";
 
 export type LiveStatus = "idle" | "connecting" | "live" | "ended" | "error";
 export type Speaker = "ai" | "student" | "none";
-export type LiveErrorKind = "mic" | "network" | "dropped";
+export type LiveErrorKind = "mic" | "network" | "dropped" | "terminated";
 
 export interface Turn {
   id: string;
@@ -52,6 +52,8 @@ export function useLiveSession() {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [muted, setMuted] = useState(false);
   const [startedAt, setStartedAt] = useState<number | null>(null);
+  /** Integrity violations so far, as counted by the server. */
+  const [violations, setViolations] = useState<{ count: number; max: number }>({ count: 0, max: 3 });
 
   const transportRef = useRef<Transport | null>(null);
   const captureRef = useRef<AudioCapture | null>(null);
@@ -139,7 +141,7 @@ export function useLiveSession() {
       });
 
       ws.onmessage = (e) => {
-        const m = JSON.parse(e.data as string) as { t: string; d?: string; stage?: string; message?: string };
+        const m = JSON.parse(e.data as string) as { t: string; d?: string; stage?: string; message?: string; count?: number; max?: number };
         switch (m.t) {
           case "audio":
             if (m.d) playerRef.current?.play(m.d);
@@ -165,6 +167,16 @@ export function useLiveSession() {
           case "error":
             dropped(m.message);
             break;
+          case "violation":
+            setViolations({ count: m.count ?? 0, max: m.max ?? 3 });
+            break;
+          case "terminated":
+            // The server ended the session for integrity violations: final, no retry.
+            endingRef.current = true;
+            teardown();
+            setStatus("error");
+            setError({ kind: "terminated", message: m.message ?? "This session was ended after integrity violations." });
+            break;
         }
       };
       ws.onclose = (e) => dropped(e.code >= 4000 && e.reason ? e.reason : undefined);
@@ -176,7 +188,7 @@ export function useLiveSession() {
         close: () => ws.close(1000),
       };
     },
-    [appendText, closeOpenTurns, dropped],
+    [appendText, closeOpenTurns, dropped, teardown],
   );
 
   /* ---------------- direct transport (warm-up only) ---------------- */
@@ -229,6 +241,7 @@ export function useLiveSession() {
       setTurns([]);
       setMuted(false);
       mutedRef.current = false;
+      setViolations({ count: 0, max: 3 });
       setStatus("connecting");
 
       // 1. Mic first, so the permission prompt doesn't eat into any connection window.
@@ -332,5 +345,5 @@ export function useLiveSession() {
     [teardown],
   );
 
-  return { status, error, turns, muted, startedAt, start, end, whenSilent, toggleMute, getLevels, setStageTag, reportIntegrity };
+  return { status, error, turns, muted, startedAt, violations, start, end, whenSilent, toggleMute, getLevels, setStageTag, reportIntegrity };
 }

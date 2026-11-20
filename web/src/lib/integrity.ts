@@ -1,59 +1,116 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+/** How long focus can be elsewhere (a notification, the address bar) before it counts as leaving. */
+const WINDOW_LEFT_MS = 2000;
 
 /**
- * Exam-mode integrity signals while a viva or bug hunt is live.
- * Events go to the server (which timestamps them); the student sees a calm notice, never an accusation.
+ * Exam mode while a viva or bug hunt is live:
+ *  - records tab switches, leaving the window, full-screen exits and navigation attempts (server-timestamped);
+ *  - blocks the Back button and asks before reloading/closing;
+ *  - shows a warning each time the server counts a violation (it ends the session at the limit).
  */
-export function useIntegrity(active: boolean, report: (kind: string, detail?: string) => void) {
+export function useIntegrity(
+  active: boolean,
+  report: (kind: string, detail?: string) => void,
+  violations: { count: number; max: number },
+) {
   const [leftFullscreen, setLeftFullscreen] = useState(false);
   const [fullscreenProblem, setFullscreenProblem] = useState<string | null>(null);
-  const [dismissed, setDismissed] = useState(false);
+  const [acknowledged, setAcknowledged] = useState(0);
+  const [lastReason, setLastReason] = useState<ViolationReason>("left");
+  const leaveTimer = useRef<number | null>(null);
 
   useEffect(() => {
     if (!active) return;
-    const onVisibility = () => report(document.hidden ? "tab_hidden" : "tab_visible");
-    const onBlur = () => report("window_blur");
-    const onFocus = () => report("window_focus");
+
+    const onVisibility = () => {
+      if (document.hidden) {
+        setLastReason("tab");
+        report("tab_hidden");
+      } else report("tab_visible");
+    };
+    const onBlur = () => {
+      report("window_blur");
+      if (leaveTimer.current) window.clearTimeout(leaveTimer.current);
+      leaveTimer.current = window.setTimeout(() => {
+        // Still away, and not just a hidden tab (that's already recorded above).
+        if (!document.hasFocus() && !document.hidden) {
+          setLastReason("window");
+          report("window_left");
+        }
+      }, WINDOW_LEFT_MS);
+    };
+    const onFocus = () => {
+      if (leaveTimer.current) window.clearTimeout(leaveTimer.current);
+      report("window_focus");
+    };
     const onFullscreen = () => {
       if (!document.fullscreenElement) {
-        report("fullscreen_exit");
+        setLastReason("fullscreen");
         setLeftFullscreen(true);
-        setDismissed(false);
+        report("fullscreen_exit");
       } else {
         setLeftFullscreen(false);
         setFullscreenProblem(null);
       }
     };
+
+    // Back button: keep an extra history entry so "Back" lands here; record the attempt.
+    history.pushState({ nirupiExam: true }, "", location.href);
+    const onPopState = () => {
+      history.pushState({ nirupiExam: true }, "", location.href);
+      setLastReason("navigation");
+      report("nav_attempt");
+    };
+    // Reload, close tab, or typing another address: the browser asks "Leave site?".
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("blur", onBlur);
     window.addEventListener("focus", onFocus);
     document.addEventListener("fullscreenchange", onFullscreen);
+    window.addEventListener("popstate", onPopState);
+    window.addEventListener("beforeunload", onBeforeUnload);
     return () => {
+      if (leaveTimer.current) window.clearTimeout(leaveTimer.current);
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("blur", onBlur);
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("fullscreenchange", onFullscreen);
+      window.removeEventListener("popstate", onPopState);
+      window.removeEventListener("beforeunload", onBeforeUnload);
     };
   }, [active, report]);
 
-  /** Must be called directly from a click. Shows the browser's reason if it refuses. */
-  const returnToFullscreen = useCallback(() => {
-    void enterExamMode().then((r) => {
-      if (r.ok) {
-        setLeftFullscreen(false);
-        setFullscreenProblem(null);
-      } else setFullscreenProblem(r.reason);
-    });
-  }, []);
+  /** Must be called directly from a click: re-enters full screen if needed and dismisses the warning. */
+  const resume = useCallback(() => {
+    setAcknowledged(violations.count);
+    if (!document.fullscreenElement && fullscreenSupported()) {
+      void enterExamMode().then((r) => {
+        if (r.ok) {
+          setLeftFullscreen(false);
+          setFullscreenProblem(null);
+        } else setFullscreenProblem(r.reason);
+      });
+    }
+  }, [violations.count]);
 
+  const unacknowledged = violations.count > acknowledged;
   return {
-    leftFullscreen: active && leftFullscreen && !dismissed,
+    /** Show the warning: a new violation was counted, or the student is still out of full screen. */
+    warningOpen: active && (unacknowledged || (leftFullscreen && fullscreenSupported())),
+    reason: lastReason,
+    violations,
     fullscreenProblem,
-    returnToFullscreen,
-    /** Carry on without full screen (it's already been recorded). */
-    dismiss: () => setDismissed(true),
+    stillOutOfFullscreen: leftFullscreen,
+    resume,
   };
 }
+
+export type ViolationReason = "tab" | "window" | "fullscreen" | "navigation" | "left";
 
 type FullscreenEl = HTMLElement & { webkitRequestFullscreen?: () => Promise<void> | void };
 

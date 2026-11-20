@@ -6,7 +6,7 @@ import { buildVivaInstruction, LANGUAGE_RULE, liveConfig, projectVocabulary, VIV
 import { buildBugHuntInstruction } from "../ai/bugHunt.js";
 import { getDoc, getRepo, putDoc } from "../store.js";
 import type { VivaDoc, VivaTurn } from "../routes/viva.js";
-import { emptyIntegrity, INTEGRITY_KINDS, type IntegrityKind, type IntegrityLog } from "./integrity.js";
+import { countViolations, emptyIntegrity, INTEGRITY_KINDS, MAX_VIOLATIONS, VIOLATION_KINDS, type IntegrityKind, type IntegrityLog } from "./integrity.js";
 
 /**
  * Server-side relay for the viva and bug hunt voice sessions.
@@ -53,6 +53,7 @@ async function handle(ws: WebSocket, _req: IncomingMessage, url: URL) {
   const viva = await getDoc<VivaDoc>("vivas", vivaId);
   if (!viva) return fail("We couldn't find that viva.", 4004);
   if (active.has(key)) return fail("This viva is already open in another tab or window.", 4009);
+  if (viva.integrity?.terminated) return fail("This viva was ended after integrity violations and can't be reopened.", 4013);
   if (mode === "viva" && viva.status !== "live") return fail("This viva has already finished. Start a new one to try again.", 4010);
   if (mode === "bug" && (!viva.bugHunt || viva.bugResult)) return fail("This bug hunt isn't available.", 4010);
   const repo = await getRepo(viva.repoId);
@@ -191,6 +192,20 @@ async function handle(ws: WebSocket, _req: IncomingMessage, url: URL) {
     await persist(true);
   };
 
+  /** Too many violations: end the session for good and flag it. */
+  const terminate = async (violations: number) => {
+    integrity.terminated = { at: now(), stage, violations };
+    finished = true;
+    dirty = true;
+    if (mode === "bug") await putDoc("vivas", vivaId, { bugClosed: true }).catch(() => {});
+    await persist(true);
+    send({
+      t: "terminated",
+      message: `Your ${mode === "bug" ? "bug hunt" : "viva"} was ended because the exam window was left ${violations} times. This is flagged in your report.`,
+    });
+    ws.close(4013, "Ended after integrity violations");
+  };
+
   ws.on("close", () => void cleanup());
   ws.on("message", (raw: RawData) => {
     let msg: { t?: string; d?: unknown; kind?: string; detail?: unknown };
@@ -204,14 +219,21 @@ async function handle(ws: WebSocket, _req: IncomingMessage, url: URL) {
     } else if (msg.t === "audioEnd") {
       session?.sendRealtimeInput({ audioStreamEnd: true });
     } else if (msg.t === "integrity" && INTEGRITY_KINDS.includes(msg.kind as (typeof INTEGRITY_KINDS)[number])) {
-      if (integrity.events.length < 1000) {
+      if (integrity.events.length < 1000 && !integrity.terminated) {
+        const kind = msg.kind as IntegrityKind;
         integrity.events.push({
-          kind: msg.kind as IntegrityKind,
+          kind,
           stage,
           at: now(),
           ...(typeof msg.detail === "string" ? { detail: msg.detail.slice(0, 80) } : {}),
         });
         dirty = true;
+        if (VIOLATION_KINDS.includes(kind)) {
+          const violations = countViolations(integrity.events);
+          // The server decides the count, so the browser can't reset or hide it.
+          send({ t: "violation", count: violations, max: MAX_VIOLATIONS });
+          if (violations >= MAX_VIOLATIONS) void terminate(violations);
+        }
       }
     }
     // Anything else — including text — is ignored: answers must be spoken.

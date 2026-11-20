@@ -4,7 +4,7 @@ import type { Analysis } from "./analyse.js";
 import type { BugHunt, BugResult } from "./bugHunt.js";
 
 /** Bump when scoring rules change so old cached reports are re-scored. */
-export const SCORING_VERSION = 5;
+export const SCORING_VERSION = 6;
 
 export interface QuestionScore {
   id: string;

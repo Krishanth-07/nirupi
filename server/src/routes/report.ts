@@ -103,7 +103,8 @@ function ensureReport(vivaId: string): Promise<ReportDoc> {
     }
 
     const turns = (viva.turns ?? []).filter((t) => t.text?.trim());
-    if (!turns.some((t) => t.role === "student") && !viva.bugResult) {
+    // A viva ended for integrity reasons always gets a report, so the flag is visible to reviewers.
+    if (!turns.some((t) => t.role === "student") && !viva.bugResult && !viva.integrity?.terminated) {
       throw new Error("!There's nothing to score yet — answer at least one question in the viva first.");
     }
     // The report reveals the bug hunt's original code, so an unsubmitted bug hunt is closed for good.

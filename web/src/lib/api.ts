@@ -214,6 +214,7 @@ export interface CandidateRow {
   isDemo: boolean;
   git: { ownerShare: number | null; isFork: boolean; commits: number | null } | null;
   flags: string[];
+  integrity: "clear" | "warnings" | "flagged" | null;
   stale: boolean;
 }
 
@@ -306,6 +307,12 @@ export interface GitEvidence {
 }
 
 export interface IntegritySummary {
+  status?: "clear" | "warnings" | "flagged";
+  violations?: number;
+  maxViolations?: number;
+  terminated?: { at: string; stage: string; violations: number } | null;
+  windowLeaves?: number;
+  navAttempts?: number;
   tabSwitches: number;
   secondsAway: number;
   windowBlurs: number;

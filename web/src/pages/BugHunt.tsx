@@ -22,7 +22,7 @@ import { languageFor } from "../lib/monaco";
 import { useLiveSession } from "../lib/live/useLiveSession";
 import { getBugHunt, liveRelayPath, startBugHunt, submitBugHunt, type BugHuntResult, type BugHuntTask } from "../lib/api";
 import { enterExamMode, exitExamMode, useIntegrity } from "../lib/integrity";
-import { ExamPauseOverlay } from "../components/viva/ExamRules";
+import { ExamWarningOverlay } from "../components/viva/ExamRules";
 
 type Phase = "loading" | "error" | "ready" | "running" | "checking" | "done" | "closed";
 
@@ -132,8 +132,18 @@ export default function BugHunt() {
     return () => clearInterval(id);
   }, [phase, task, submit]);
 
+  // Ended by the server for integrity violations: close the hunt and say why.
+  const [closedMessage, setClosedMessage] = useState<string | null>(null);
+  useEffect(() => {
+    if (live.error?.kind === "terminated") {
+      setClosedMessage(live.error.message);
+      setPhase("closed");
+      void exitExamMode();
+    }
+  }, [live.error]);
+
   // Exam mode while the hunt runs: tab switches / focus / full-screen exits go to the server.
-  const exam = useIntegrity(phase === "running" && live.status === "live", live.reportIntegrity);
+  const exam = useIntegrity(phase === "running" && live.status === "live", live.reportIntegrity, live.violations);
 
   // No pasting in (e.g. from an AI tool) and no copying out — attempts are recorded.
   // Depends only on the stable reportIntegrity callback, so listeners are attached exactly once.
@@ -179,7 +189,7 @@ export default function BugHunt() {
   if (!vivaId) return <Shell><Missing /></Shell>;
 
   return (
-    <Shell repoName={task?.repoName}>
+    <Shell repoName={task?.repoName} locked={phase === "running"}>
       {phase === "loading" && <Preparing />}
       {phase === "error" && !task && <LoadError message={error ?? ""} onRetry={() => setAttempt((a) => a + 1)} />}
       {task && phase !== "loading" && (
@@ -248,7 +258,14 @@ export default function BugHunt() {
                   </motion.p>
                 )}
               </AnimatePresence>
-              <ExamPauseOverlay open={exam.leftFullscreen} problem={exam.fullscreenProblem} onReturn={exam.returnToFullscreen} onDismiss={exam.dismiss} />
+              <ExamWarningOverlay
+            open={exam.warningOpen}
+            reason={exam.reason}
+            count={exam.violations.count}
+            max={exam.violations.max}
+            problem={exam.fullscreenProblem}
+            onResume={exam.resume}
+          />
               {/* Before starting, the code is blurred so the 3 minutes are fair. */}
               <AnimatePresence>
                 {phase === "ready" && (
@@ -275,9 +292,10 @@ export default function BugHunt() {
               ) : phase === "closed" ? (
                 <motion.div key="closed" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-4">
                   <Card className="p-6">
-                    <p className="font-heading text-h3">This bug hunt is closed</p>
+                    <p className="font-heading text-h3">{closedMessage ? "Bug hunt ended" : "This bug hunt is closed"}</p>
                     <p className="mt-2 text-muted">
-                      The report was opened before a fix was submitted, so the bug hunt can't be taken now. The report shows it as not attempted.
+                      {closedMessage ??
+                        "The report was opened before a fix was submitted, so the bug hunt can't be taken now. The report shows it as not attempted."}
                     </p>
                   </Card>
                   <Link
@@ -351,11 +369,11 @@ export default function BugHunt() {
 
 /* ---------------- pieces ---------------- */
 
-function Shell({ children, repoName }: { children: React.ReactNode; repoName?: string }) {
+function Shell({ children, repoName, locked = false }: { children: React.ReactNode; repoName?: string; locked?: boolean }) {
   return (
     <div className="flex min-h-dvh flex-col lg:h-dvh">
       <header className="mx-auto flex w-full max-w-[1100px] items-center justify-between gap-4 px-4 py-4 sm:px-6">
-        <Logo />
+        <Logo disabled={locked} />
         {repoName && <span className="truncate text-small text-muted">{repoName}</span>}
       </header>
       <main id="main" tabIndex={-1} className="mx-auto flex w-full max-w-[1100px] flex-1 flex-col px-4 pb-6 sm:px-6 lg:min-h-0">{children}</main>
