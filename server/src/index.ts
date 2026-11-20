@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "./env.js"; // must stay first: loads .env before other modules read settings
 import express from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
