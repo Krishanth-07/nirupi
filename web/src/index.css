@@ -5,12 +5,12 @@
   --font-sans: "Google Sans Flex", "Google Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  --color-bg: #fafaf7;
+  --color-bg: #f7f8fa;
   --color-surface: #ffffff;
   --color-ink: #1f1f1f;
   --color-muted: #5f6368;
-  --color-line: #e8e8e3;
-  --color-subtle: #f3f3ee;
+  --color-line: #e3e6ea;
+  --color-subtle: #f1f3f5;
 
   /* Brand blue for fills/highlights; the deeper blue keeps text + button labels AA-legible. */
   --color-accent: #4285f4;
@@ -26,15 +26,15 @@
 
   /* Exam-paper details: the red margin rule and the faint margin column of an answer script. */
   --color-margin: #ea4335;
-  --color-paper-margin: #f6f5f0;
+  --color-paper-margin: #f4f6f9;
 
   /* Radius follows hierarchy: documents are crisp, cards soft, controls friendly. */
   --radius-sheet: 6px;
   --radius-card: 16px;
   --radius-ctl: 12px;
 
-  --shadow-soft: 0 1px 2px rgb(31 31 31 / 0.04), 0 8px 24px -8px rgb(31 31 31 / 0.08);
-  --shadow-lift: 0 2px 4px rgb(31 31 31 / 0.05), 0 16px 40px -12px rgb(31 31 31 / 0.14);
+  --shadow-soft: 0 0 0 1px rgb(31 31 31 / 0.05), 0 1px 2px rgb(31 31 31 / 0.04);
+  --shadow-lift: 0 1px 2px rgb(31 31 31 / 0.05), 0 12px 32px -16px rgb(31 31 31 / 0.16);
 
   /* Type scale: 48 / 32 / 24 / 18 / 15 / 13 */
   --text-display: 3rem;

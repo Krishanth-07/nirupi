@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
 import { FolderGit2 } from "lucide-react";
@@ -9,20 +9,12 @@ import { startDemo, type VivaMode } from "../lib/api";
 
 const GITHUB_RE = /^(https?:\/\/)?(www\.)?github\.com\/[\w.-]+\/[\w.-]+?(\.git)?(\/tree\/[^?#]+)?\/?([?#].*)?$/i;
 
-/** The story, in three beats. Not a sequence, so not numbered. */
-const WHY = [
-  {
-    title: "CVs stopped showing skill",
-    body: "AI can write a whole project in an afternoon. A GitHub link shows what exists, not what the candidate understands.",
-  },
-  {
-    title: "A conversation does",
-    body: "Nirupi asks three spoken questions about real lines in the candidate's own code, then hands them one small bug to fix in three minutes.",
-  },
-  {
-    title: "Your team gets evidence",
-    body: "Technical understanding and communication are scored separately, backed by the candidate's own words, git history and exam integrity signals.",
-  },
+/** Times are from a typical run: warm-up, three questions, a three-minute bug hunt. */
+const TIMELINE = [
+  { at: "0:00", title: "Gemini reads the repo", body: "It picks three lines worth asking about: a design decision, a tricky branch, an edge case." },
+  { at: "0:30", title: "Three questions, out loud", body: "A calm examiner asks about each line and follows up when an answer stays vague." },
+  { at: "5:00", title: "A three-minute bug hunt", body: "The candidate finds and fixes one small bug planted in their own code." },
+  { at: "8:00", title: "Evidence for your team", body: "Scores, the candidate's own words, git history and integrity signals land in your hiring dashboard." },
 ];
 
 export default function Landing() {
@@ -121,43 +113,43 @@ export default function Landing() {
             </div>
           </div>
 
-          <Specimen />
+          <AnswerSheet />
         </section>
 
-        {/* The story */}
-        <section aria-labelledby="why" className="border-t border-line py-16 sm:py-20">
-          <h2 id="why" className="font-heading text-h2">
-            Why Nirupi
+        {/* The argument, in one sentence */}
+        <section aria-labelledby="why" className="border-t border-line py-16 sm:py-24">
+          <h2 id="why" className="max-w-[820px] font-display text-[clamp(2rem,4.6vw,3.25rem)] leading-[1.04]">
+            A CV says React. A conversation shows whether they understand it.
           </h2>
-          <div className="mt-10 grid gap-10 sm:grid-cols-3 sm:gap-8">
-            {WHY.map((w) => (
-              <div key={w.title} className="border-l-2 border-accent pl-5">
-                <h3 className="font-heading text-h3">{w.title}</h3>
-                <p className="mt-2 text-muted">{w.body}</p>
-              </div>
-            ))}
+          <div className="mt-8 grid max-w-[820px] gap-6 text-body text-muted sm:grid-cols-2 sm:gap-10">
+            <p>
+              AI can write a whole project in an afternoon, so a GitHub link shows what exists, not what the candidate understands. Nirupi
+              talks to them about their own code, line by line.
+            </p>
+            <p>
+              Technical understanding is scored separately from spoken English, so a strong engineer isn't marked down for their accent, and
+              a fluent one can't talk their way past a line they don't understand.
+            </p>
           </div>
         </section>
 
-        {/* How an assessment works: a real sequence, so it's numbered */}
-        <section aria-labelledby="how" className="border-t border-line py-16 sm:py-20">
+        {/* A real sequence with real times, so it gets a timeline */}
+        <section aria-labelledby="how" className="border-t border-line py-16 sm:py-24">
           <h2 id="how" className="font-heading text-h2">
-            How an assessment works
+            An assessment, minute by minute
           </h2>
-          <ol className="mt-10 grid gap-10 sm:grid-cols-3 sm:gap-8">
-            {[
-              ["The candidate connects a repo", "Gemini reads their project and picks three specific lines worth talking about."],
-              ["A live viva and a bug hunt", "A calm AI examiner asks about those lines out loud, then the candidate fixes one small bug in their own code."],
-              ["Your team reviews the evidence", "Scores, quotes, git history and integrity signals land in your hiring dashboard, ready for a human decision."],
-            ].map(([title, body], i) => (
-              <li key={title} className="flex gap-4">
-                <span className="font-display text-[2.5rem] leading-none text-accent-strong/25 tabular-nums" aria-hidden="true">
-                  {i + 1}
-                </span>
-                <div>
-                  <h3 className="font-heading text-h3">{title}</h3>
-                  <p className="mt-2 text-muted">{body}</p>
-                </div>
+          <ol className="relative mt-12 grid gap-10 lg:grid-cols-4 lg:gap-8">
+            <span aria-hidden="true" className="absolute top-[7px] right-0 left-0 hidden h-px bg-line lg:block" />
+            <span aria-hidden="true" className="absolute top-2 bottom-2 left-[7px] w-px bg-line lg:hidden" />
+            {TIMELINE.map((step) => (
+              <li key={step.at} className="relative pl-10 lg:pt-10 lg:pl-0">
+                <span aria-hidden="true" className="absolute top-0 left-0 size-[15px] rounded-full border-2 border-accent-strong bg-bg" />
+                <p className="font-display text-h2 leading-none tabular-nums text-accent-strong">
+                  <span className="sr-only">At minute </span>
+                  {step.at}
+                </p>
+                <h3 className="mt-3 font-heading text-h3">{step.title}</h3>
+                <p className="mt-2 text-muted">{step.body}</p>
               </li>
             ))}
           </ol>
@@ -187,121 +179,103 @@ export default function Landing() {
     </div>
   );
 }
-/* A worked example of the core idea: a real line of public code, and the question pinned to it. */
+
+/* The hero: one marked answer script, the same artifact a hiring team receives. */
 const CODE: { n: number; text: string }[] = [
-  { n: 196, text: "  // freshness" },
-  { n: 197, text: "  if (req.fresh) this.status(304);" },
-  { n: 198, text: "" },
-  { n: 199, text: "  if (204 === this.statusCode || 304 === this.statusCode) {" },
-  { n: 200, text: "    this.removeHeader('Content-Type');" },
-  { n: 201, text: "    this.removeHeader('Content-Length');" },
-  { n: 202, text: "    this.removeHeader('Transfer-Encoding');" },
-  { n: 203, text: "    chunk = '';" },
-  { n: 204, text: "  }" },
+  { n: 199, text: "if (this.statusCode === 204 ||" },
+  { n: 200, text: "    this.statusCode === 304) {" },
+  { n: 201, text: "  this.removeHeader('Content-Length');" },
+  { n: 202, text: "  this.removeHeader('Content-Type');" },
+  { n: 203, text: "  chunk = '';" },
 ];
+const ANSWER =
+  "A 204 or 304 never has a body. If Content-Length stayed, a proxy would sit waiting for bytes that are never coming, so it clears the headers and the chunk together.";
 
-function Specimen() {
+function AnswerSheet() {
   const still = useReducedMotion();
-  const t = (delay: number) => (still ? { duration: 0 } : { delay, duration: 0.5, ease: [0.22, 1, 0.36, 1] as const });
+  const [typed, setTyped] = useState(0);
+  const done = still || typed >= ANSWER.length;
+
+  // The one orchestrated moment: the answer arrives like live transcription, then it gets marked.
+  useEffect(() => {
+    if (still) return;
+    let i = 0;
+    let timer: number | undefined;
+    const start = window.setTimeout(() => {
+      timer = window.setInterval(() => {
+        i = Math.min(ANSWER.length, i + 2);
+        setTyped(i);
+        if (i >= ANSWER.length) window.clearInterval(timer);
+      }, 32);
+    }, 900);
+    return () => {
+      window.clearTimeout(start);
+      window.clearInterval(timer);
+    };
+  }, [still]);
+
+  const shown = still ? ANSWER : ANSWER.slice(0, typed);
 
   return (
-    <figure className="relative min-w-0 pb-44 sm:pb-[290px]" aria-label="Example: a question Nirupi asks about a real line of code, and the report a hiring team receives">
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={t(0.1)}
-        className="overflow-hidden rounded-card bg-[#1f1f1f] shadow-lift"
-      >
-        <div className="flex items-center justify-between border-b border-white/10 px-4 py-2.5">
-          <Cite file="expressjs/express/lib/response.js" full tone="dark" />
-          <span className="text-small text-[#9aa0a6]">res.send()</span>
-        </div>
-        <pre className="overflow-x-auto py-3 font-mono text-[12.5px] leading-[22px] text-[#e8eaed]">
-          {CODE.map((l) => (
-            <div key={l.n} className="relative px-4">
-              {l.n === 199 && (
-                <motion.span
-                  aria-hidden="true"
-                  className="absolute inset-y-0 left-0 origin-left bg-[#4285f4]/25"
-                  initial={{ scaleX: 0 }}
-                  animate={{ scaleX: 1 }}
-                  transition={t(0.65)}
-                  style={{ width: "100%" }}
-                />
-              )}
-              <span className="relative mr-4 inline-block w-7 text-right text-[#6b6f75] select-none">{l.n}</span>
-              <span className="relative">{l.text || " "}</span>
-            </div>
-          ))}
-        </pre>
-      </motion.div>
+    <figure
+      className="sheet relative min-w-0 overflow-hidden"
+      aria-label="Example: a marked answer from a Nirupi assessment, with the question, the code it points to, the candidate's spoken answer and the examiner's mark"
+    >
+      <div aria-hidden="true" className="absolute inset-y-0 left-0 w-14 bg-paper-margin sm:w-20" />
+      <div aria-hidden="true" className="absolute inset-y-0 left-14 w-px bg-margin/50 sm:left-20" />
 
-      {/* The examiner's note, pinned to line 199 */}
-      <motion.figcaption
-        initial={{ opacity: 0, x: 16 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={t(1.05)}
-        className="absolute right-0 bottom-0 left-6 rounded-card bg-surface p-5 shadow-lift ring-1 ring-line sm:-right-3 sm:bottom-auto sm:left-auto sm:top-[150px] sm:w-[min(340px,78%)]"
-      >
-        <Cite file="lib/response.js" line={199} />
-        <p className="mt-3 text-body font-medium">
-          Why does <code className="font-mono text-[13px]">res.send</code> strip the body headers when the status is 204 or 304?
-        </p>
-        <p className="mt-2 text-small text-muted">Asked out loud, about the candidate's own code.</p>
-      </motion.figcaption>
-
-      {/* ...and what the hiring team gets back */}
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={t(1.6)}
-        className="absolute top-[345px] left-0 hidden w-[320px] rounded-card bg-surface p-5 shadow-lift ring-1 ring-line sm:block"
-        aria-hidden="true"
-      >
-        <div className="flex items-center justify-between">
-          <span className="text-small font-medium text-muted">Example report</span>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-good-soft px-2.5 py-0.5 text-small font-semibold whitespace-nowrap text-[#137333]">
-            <span className="size-1.5 rounded-full bg-good" />
-            Strong understanding
-          </span>
+      <div className="relative grid grid-cols-[3.5rem_minmax(0,1fr)] sm:grid-cols-[5rem_minmax(0,1fr)]">
+        {/* Question */}
+        <div className="pt-6 text-center font-display text-h2 leading-none text-muted sm:pt-7">2</div>
+        <div className="min-w-0 px-5 pt-6 sm:px-7 sm:pt-7">
+          <Cite file="lib/response.js" line={199} />
+          <p className="mt-3 font-heading text-h3 leading-snug">
+            Why does <code className="font-mono text-[0.9em]">res.send</code> strip the body headers when the status is 204 or 304?
+          </p>
+          <pre className="mt-4 overflow-x-auto rounded-[4px] bg-subtle py-2 font-mono text-[12px] leading-[21px] text-ink [font-variant-ligatures:none]">
+            {CODE.map((l) => (
+              <div key={l.n} className={`px-3 ${l.n <= 200 ? "bg-accent-soft" : ""}`}>
+                <span className="mr-3 inline-block w-6 text-right text-muted select-none">{l.n}</span>
+                {l.text}
+              </div>
+            ))}
+          </pre>
         </div>
-        <div className="mt-4 flex items-center gap-5">
-          <MiniRing value={82} label="Technical" delay={1.9} still={!!still} />
-          <MiniRing value={74} label="Communication" delay={2.05} still={!!still} />
-        </div>
-        <p className="mt-4 border-l-2 border-accent pl-3 text-small text-muted italic">
-          "A 204 has no body, so sending Content-Length would make proxies wait for bytes that never come."
-        </p>
-      </motion.div>
-    </figure>
-  );
-}
 
-function MiniRing({ value, label, delay, still }: { value: number; label: string; delay: number; still: boolean }) {
-  const r = 20;
-  const c = 2 * Math.PI * r;
-  return (
-    <div className="flex items-center gap-2.5">
-      <svg width="48" height="48" viewBox="0 0 48 48" className="-rotate-90">
-        <circle cx="24" cy="24" r={r} fill="none" stroke="var(--color-subtle)" strokeWidth="5" />
-        <motion.circle
-          cx="24"
-          cy="24"
-          r={r}
-          fill="none"
-          stroke="var(--color-good)"
-          strokeWidth="5"
-          strokeLinecap="round"
-          strokeDasharray={c}
-          initial={{ strokeDashoffset: still ? c * (1 - value / 100) : c }}
-          animate={{ strokeDashoffset: c * (1 - value / 100) }}
-          transition={still ? { duration: 0 } : { delay, duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
-        />
-      </svg>
-      <div>
-        <p className="font-display text-h3 leading-none tabular-nums">{value}</p>
-        <p className="mt-1 text-small text-muted">{label}</p>
+        {/* The candidate's spoken answer, and the mark in the margin */}
+        <div className="relative pt-8 text-center">
+          <motion.span
+            aria-hidden={!done}
+            initial={false}
+            animate={done ? { opacity: 1, scale: 1, rotate: -8 } : { opacity: 0, scale: 1.4, rotate: -20 }}
+            transition={still ? { duration: 0 } : { type: "spring", stiffness: 420, damping: 18 }}
+            className="inline-block font-display text-[1.75rem] leading-none text-accent-strong tabular-nums sm:text-[2rem]"
+          >
+            8<span className="text-[0.6em] opacity-70">/10</span>
+          </motion.span>
+        </div>
+        <div className="min-w-0 px-5 pt-8 sm:px-7">
+          <p className="text-small font-medium text-muted">Candidate, spoken</p>
+          <p className="sr-only">{ANSWER}</p>
+          <p aria-hidden="true" className="mt-1.5 min-h-[4.5em] text-body leading-relaxed">
+            {shown}
+            {!done && <span className="ml-0.5 inline-block animate-pulse text-accent-strong">▍</span>}
+          </p>
+        </div>
+
+        {/* The examiner follows up */}
+        <div />
+        <motion.div
+          initial={false}
+          animate={{ opacity: done ? 1 : 0 }}
+          transition={still ? { duration: 0 } : { delay: 0.5, duration: 0.4 }}
+          className="min-w-0 px-5 pt-5 pb-7 sm:px-7"
+        >
+          <p className="border-l-2 border-accent pl-3 text-small text-muted">
+            <span className="font-medium text-ink">Examiner follows up:</span> what would break if line 203 were deleted?
+          </p>
+        </motion.div>
       </div>
-    </div>
+    </figure>
   );
 }
