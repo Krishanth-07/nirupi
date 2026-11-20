@@ -1,0 +1,17 @@
+{
+  "name": "nirupi",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": ["server", "web"],
+  "scripts": {
+    "dev": "concurrently -k -n server,web -c blue,green \"npm:dev -w server\" \"npm:dev -w web\"",
+    "build": "npm run build -w web && npm run build -w server",
+    "start": "npm run start -w server"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.7"
+  },
+  "optionalDependencies": {
+    "@esbuild/win32-x64": "0.28.2"
+  }
+}

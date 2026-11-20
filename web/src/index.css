@@ -1,0 +1,285 @@
+@import "tailwindcss";
+
+/* ---------- Nirupi design tokens ---------- */
+@theme {
+  --font-sans: "Google Sans Flex", "Google Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --color-bg: #fafaf7;
+  --color-surface: #ffffff;
+  --color-ink: #1f1f1f;
+  --color-muted: #5f6368;
+  --color-line: #e8e8e3;
+  --color-subtle: #f3f3ee;
+
+  /* Brand blue for fills/highlights; the deeper blue keeps text + button labels AA-legible. */
+  --color-accent: #4285f4;
+  --color-accent-strong: #1a73e8;
+  --color-accent-soft: #e8f0fe;
+
+  --color-good: #34a853;
+  --color-good-soft: #e6f4ea;
+  --color-warn: #f9ab00;
+  --color-warn-soft: #fef7e0;
+  --color-bad: #ea4335;
+  --color-bad-soft: #fce8e6;
+
+  /* Exam-paper details: the red margin rule and the faint margin column of an answer script. */
+  --color-margin: #ea4335;
+  --color-paper-margin: #f6f5f0;
+
+  /* Radius follows hierarchy: documents are crisp, cards soft, controls friendly. */
+  --radius-sheet: 6px;
+  --radius-card: 16px;
+  --radius-ctl: 12px;
+
+  --shadow-soft: 0 1px 2px rgb(31 31 31 / 0.04), 0 8px 24px -8px rgb(31 31 31 / 0.08);
+  --shadow-lift: 0 2px 4px rgb(31 31 31 / 0.05), 0 16px 40px -12px rgb(31 31 31 / 0.14);
+
+  /* Type scale: 48 / 32 / 24 / 18 / 15 / 13 */
+  --text-display: 3rem;
+  --text-display--line-height: 1.08;
+  --text-display--letter-spacing: -0.03em;
+  --text-h1: 2rem;
+  --text-h1--line-height: 1.2;
+  --text-h1--letter-spacing: -0.02em;
+  --text-h2: 1.5rem;
+  --text-h2--line-height: 1.3;
+  --text-h3: 1.125rem;
+  --text-h3--line-height: 1.4;
+  --text-body: 0.9375rem;
+  --text-body--line-height: 1.6;
+  --text-small: 0.8125rem;
+  --text-small--line-height: 1.5;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  body {
+    @apply bg-bg font-sans text-body text-ink;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-accent-strong);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: var(--color-accent-soft);
+  }
+  /* The skip-link target receives focus programmatically; don't outline the whole page. */
+  main:focus {
+    outline: none;
+  }
+  /* Tailwind v4 resets buttons to the default cursor; clickable things should look clickable. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  summary {
+    cursor: pointer;
+  }
+  /* Remove the 300ms tap delay on touch devices. */
+  a,
+  button,
+  input,
+  [role="button"] {
+    touch-action: manipulation;
+  }
+  /* 16px inputs stop iOS Safari zooming in when a field is focused. */
+  input,
+  textarea,
+  select {
+    font-size: max(16px, 1em);
+  }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+}
+
+/* ---------- Type personality ---------- */
+/* Headlines: condensed + heavy, like the title block of an exam paper. */
+@utility font-display {
+  font-family: var(--font-sans);
+  font-stretch: 82%;
+  font-weight: 760;
+  letter-spacing: -0.025em;
+  font-optical-sizing: auto;
+}
+/* Section titles: a touch condensed so they read as headings, not bold body text. */
+@utility font-heading {
+  font-stretch: 92%;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+/* ---------- Answer-sheet surface (report) ---------- */
+@utility sheet {
+  background: var(--color-surface);
+  border-radius: var(--radius-sheet);
+  box-shadow:
+    0 1px 0 rgb(31 31 31 / 0.04),
+    0 2px 6px -2px rgb(31 31 31 / 0.06),
+    0 24px 48px -24px rgb(31 31 31 / 0.14);
+}
+
+@keyframes seal-stamp {
+  0% {
+    transform: scale(1.35) rotate(-24deg);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(0.96) rotate(-9deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(-10deg);
+    opacity: 1;
+  }
+}
+@utility animate-stamp {
+  animation: seal-stamp 650ms cubic-bezier(0.2, 0.9, 0.3, 1.2) 350ms both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-stamp {
+    animation: none;
+    transform: rotate(-10deg);
+  }
+  /* Looping indicators become static; state is still shown by colour + text. */
+  .animate-ping,
+  .animate-pulse,
+  .animate-spin {
+    animation: none !important;
+  }
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Small text buttons/links stay compact with a mouse but get a full 44px target on touch screens. */
+@utility tap-target {
+  @media (pointer: coarse) {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+}
+
+/* Keyboard users can jump straight past the header. */
+@utility skip-link {
+  position: absolute;
+  left: 16px;
+  top: -100px;
+  z-index: 100;
+  padding: 10px 16px;
+  border-radius: var(--radius-ctl);
+  background: var(--color-ink);
+  color: white;
+  font-weight: 600;
+  &:focus {
+    top: 12px;
+  }
+}
+
+/* ---------- Voice orb ---------- */
+.orb {
+  --lvl: 0;
+  --orb-color: var(--color-accent);
+  --orb-glow: rgb(66 133 244 / 0.35);
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+.orb[data-speaker="student"] {
+  --orb-color: var(--color-good);
+  --orb-glow: rgb(52 168 83 / 0.35);
+}
+.orb[data-speaker="none"] {
+  --orb-glow: rgb(66 133 244 / 0.18);
+}
+.orb-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  border: 1.5px solid var(--orb-color);
+  transition: border-color 400ms ease;
+  will-change: transform, opacity;
+}
+.orb-ring-1 {
+  opacity: calc(0.18 + var(--lvl) * 0.4);
+  transform: scale(calc(0.78 + var(--lvl) * 0.16));
+}
+.orb-ring-2 {
+  opacity: calc(0.1 + var(--lvl) * 0.3);
+  transform: scale(calc(0.9 + var(--lvl) * 0.22));
+}
+.orb-ring-3 {
+  opacity: calc(0.05 + var(--lvl) * 0.2);
+  transform: scale(calc(1 + var(--lvl) * 0.3));
+}
+.orb-core {
+  width: 56%;
+  aspect-ratio: 1;
+  border-radius: 9999px;
+  background: radial-gradient(
+    circle at 35% 30%,
+    color-mix(in srgb, var(--orb-color) 55%, white) 0%,
+    var(--orb-color) 55%,
+    color-mix(in srgb, var(--orb-color) 70%, #0b1b3a) 100%
+  );
+  box-shadow:
+    0 0 calc(24px + var(--lvl) * 72px) calc(var(--lvl) * 12px) var(--orb-glow),
+    inset 0 -10px 30px rgb(0 0 0 / 0.12);
+  transform: scale(calc(1 + var(--lvl) * 0.12));
+  transition:
+    background 400ms ease,
+    box-shadow 120ms linear;
+  will-change: transform;
+}
+.orb-idle .orb-core {
+  animation: orb-breathe 4.5s ease-in-out infinite;
+}
+@keyframes orb-breathe {
+  0%,
+  100% {
+    transform: scale(0.97);
+  }
+  50% {
+    transform: scale(1.03);
+  }
+}
+.orb-connecting .orb-ring-1 {
+  animation: orb-ping 1.8s ease-out infinite;
+}
+.orb-connecting .orb-ring-2 {
+  animation: orb-ping 1.8s ease-out 0.6s infinite;
+}
+.orb-connecting .orb-ring-3 {
+  animation: orb-ping 1.8s ease-out 1.2s infinite;
+}
+@keyframes orb-ping {
+  from {
+    transform: scale(0.6);
+    opacity: 0.5;
+  }
+  to {
+    transform: scale(1.1);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orb-idle .orb-core,
+  .orb-connecting .orb-ring-1,
+  .orb-connecting .orb-ring-2,
+  .orb-connecting .orb-ring-3 {
+    animation: none;
+  }
+}
