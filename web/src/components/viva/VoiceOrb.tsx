@@ -5,10 +5,12 @@ interface VoiceOrbProps {
   status: LiveStatus;
   getLevels: () => { level: number; speaker: Speaker };
   onSpeakerChange?: (s: Speaker) => void;
+  /** "lg" when the orb is the focus; "sm" when other content (rules, code) needs the space. */
+  size?: "lg" | "sm";
 }
 
 /** Audio-reactive orb. Levels are written straight to CSS variables every frame (no re-renders). */
-export function VoiceOrb({ status, getLevels, onSpeakerChange }: VoiceOrbProps) {
+export function VoiceOrb({ status, getLevels, onSpeakerChange, size = "lg" }: VoiceOrbProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [speaker, setSpeaker] = useState<Speaker>("none");
 
@@ -51,7 +53,7 @@ export function VoiceOrb({ status, getLevels, onSpeakerChange }: VoiceOrbProps) 
     <div
       ref={ref}
       data-speaker={speaker}
-      className={`orb ${mode} aspect-square w-[min(68vw,300px)] ${status === "ended" || status === "error" ? "opacity-60 grayscale-[0.4]" : ""}`}
+      className={`orb ${mode} aspect-square transition-[width] duration-500 ${size === "sm" ? "w-[min(40vw,150px)]" : "w-[min(68vw,280px)]"} ${status === "ended" || status === "error" ? "opacity-60 grayscale-[0.4]" : ""}`}
       aria-hidden="true"
     >
       <span className="orb-ring orb-ring-3" />

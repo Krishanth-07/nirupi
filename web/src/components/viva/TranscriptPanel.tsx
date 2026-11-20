@@ -67,7 +67,7 @@ export function TranscriptPanel({ turns, status }: { turns: Turn[]; status: Live
                       : "rounded-tr-md bg-subtle text-ink"
                   } ${t.final ? "" : "opacity-90"}`}
                 >
-                  {t.text}
+                  {t.text.replace(/`/g, "")}
                   {!t.final && (
                     <span aria-hidden="true" className="ml-0.5 inline-block animate-pulse text-muted">
                       ▍

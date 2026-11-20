@@ -45,14 +45,23 @@ export async function ensureGitEvidence(repo: RepoDoc): Promise<GitEvidence | un
   return repo.git;
 }
 
+/** Set when GitHub rejects the token (expired/revoked): fall back to anonymous access instead of failing. */
+let tokenRejected = false;
+
 async function gh<T>(path: string): Promise<{ data: T; link: string | null }> {
   const headers: Record<string, string> = {
     Accept: "application/vnd.github+json",
     "User-Agent": "nirupi-viva",
     "X-GitHub-Api-Version": "2022-11-28",
   };
-  if (process.env.GITHUB_TOKEN) headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
-  const res = await fetch(API + path, { headers, signal: AbortSignal.timeout(10_000) });
+  if (process.env.GITHUB_TOKEN && !tokenRejected) headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
+  let res = await fetch(API + path, { headers, signal: AbortSignal.timeout(10_000) });
+  if (res.status === 401 && headers.Authorization) {
+    tokenRejected = true;
+    console.warn("[git] GITHUB_TOKEN was rejected (expired or revoked); using anonymous GitHub access (60 requests/hour)");
+    delete headers.Authorization;
+    res = await fetch(API + path, { headers, signal: AbortSignal.timeout(10_000) });
+  }
   if (res.status === 403 || res.status === 429) throw new Error("GitHub's rate limit was reached");
   if (res.status === 404) throw new Error("the repo isn't visible on GitHub's API");
   if (!res.ok) throw new Error(`GitHub API returned ${res.status}`);

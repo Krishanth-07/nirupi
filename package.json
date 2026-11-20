@@ -7,7 +7,8 @@
     "dev": "npm run build && node server/dist/index.js",
     "build": "npm run build -w nirupi-web && npm run build -w nirupi-server",
     "start": "node server/dist/index.js",
-    "lint": "npm run lint -w nirupi-server && npm run lint -w nirupi-web"
+    "lint": "npm run lint -w nirupi-server && npm run lint -w nirupi-web",
+    "reset-data": "node -e \"for (const d of ['vivas', 'reports']) require('fs').rmSync('server/.data/' + d, { recursive: true, force: true }); console.log('Cleared saved vivas and reports (the prepared demo project is kept).')\""
   },
   "devDependencies": {
     "concurrently": "^10.0.7"

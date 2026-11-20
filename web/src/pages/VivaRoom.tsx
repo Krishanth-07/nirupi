@@ -12,6 +12,7 @@ import { useLiveSession, type LiveError, type Speaker } from "../lib/live/useLiv
 import { liveRelayPath, parseMode, startViva, type VivaStart } from "../lib/api";
 import { enterExamMode, exitExamMode, useIntegrity } from "../lib/integrity";
 import { ExamRules, ExamWarningOverlay, RulesConsent } from "../components/viva/ExamRules";
+import { Cite } from "../components/ui/Cite";
 
 const STAGE_ORDER = ["warmup", "q1", "q2", "q3", "done"];
 
@@ -99,9 +100,13 @@ export default function VivaRoom() {
     ];
   }, [viva]);
 
+  const currentQuestion = viva?.questions.find((q) => q.id === stage) ?? null;
+  const lastAi = [...live.turns].reverse().find((t) => t.role === "ai");
+  const latestAiText = lastAi?.text ?? "";
   const activeId = stage === "done" ? "bug" : stage;
   const doneIds = STAGE_ORDER.slice(0, Math.max(0, STAGE_ORDER.indexOf(stage)));
-  const repoLabel = viva?.repoName ?? repoId?.replace("__", "/") ?? null;
+  // Storage ids look like "demo__owner__repo"; show "owner/repo" until the viva supplies the real name.
+  const repoLabel = viva?.repoName ?? (repoId ? repoId.replace(/^demo__/, "").replace("__", "/") : null);
   const questionNo = ["q1", "q2", "q3"].indexOf(stage) + 1;
 
   return (
@@ -129,7 +134,12 @@ export default function VivaRoom() {
         </aside>
 
         {/* Centre: the orb */}
-        <section className="relative flex flex-col items-center justify-center gap-8 rounded-card bg-surface px-6 py-10 shadow-soft lg:py-0">
+        <section className="relative flex flex-col items-center justify-center gap-6 overflow-hidden rounded-card bg-surface px-6 py-10 shadow-soft lg:min-h-0 lg:py-8">
+          {/* Soft studio glow behind the orb */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 top-0 h-2/3 bg-[radial-gradient(60%_60%_at_50%_30%,rgba(66,133,244,0.10),transparent_70%)]"
+          />
           {live.status === "live" && isViva && (
             <motion.span
               key={stage}
@@ -137,8 +147,8 @@ export default function VivaRoom() {
               animate={{ opacity: 1, y: 0 }}
               className="absolute top-5 rounded-full bg-accent-soft px-3 py-1 text-small font-medium text-accent-strong"
             >
-              {practice ? "Practice, " : ""}
-              {questionNo > 0 ? `question ${questionNo} of 3` : stage === "done" ? "wrapping up" : "getting started"}
+              {practice ? "Practice: " : ""}
+              {questionNo > 0 ? `Question ${questionNo} of 3` : stage === "done" ? "Wrapping up" : "Getting started"}
               {viva && viva.attempt > 1 ? `, attempt ${viva.attempt}` : ""}
             </motion.span>
           )}
@@ -152,7 +162,18 @@ export default function VivaRoom() {
             onResume={exam.resume}
           />
 
-          <VoiceOrb status={live.status} getLevels={live.getLevels} onSpeakerChange={setSpeaker} />
+          <VoiceOrb
+            status={live.status}
+            getLevels={live.getLevels}
+            onSpeakerChange={setSpeaker}
+            size={(isViva && live.status === "idle") || (live.status === "live" && !!currentQuestion) ? "sm" : "lg"}
+          />
+
+          {/* Live caption: what the examiner is saying right now */}
+          {live.status === "live" && <LiveCaption text={latestAiText} />}
+
+          {/* The code under discussion, front and centre */}
+          {live.status === "live" && currentQuestion && <QuestionCode q={currentQuestion} />}
 
           <AnimatePresence mode="wait">
             <motion.div
@@ -395,5 +416,60 @@ function Elapsed({ since }: { since: number | null }) {
     <span className="font-mono text-small tabular-nums text-muted" aria-label="Elapsed time">
       {String(Math.floor(s / 60)).padStart(2, "0")}:{String(s % 60).padStart(2, "0")}
     </span>
+  );
+}
+
+/** Large subtitle of the examiner's latest sentence (the full transcript is in the side panel). */
+function LiveCaption({ text }: { text: string }) {
+  // Show just the tail so it reads like live subtitles.
+  // Gemini sometimes marks code words with backticks; captions read better without them.
+  const words = text.replace(/`/g, "").trim().split(/\s+/);
+  const tail = words.length > 28 ? "…" + words.slice(-28).join(" ") : words.join(" ");
+  return (
+    <div className="relative min-h-[3.5rem] w-full max-w-[560px] text-center" aria-hidden="true">
+      <AnimatePresence mode="popLayout">
+        {tail && (
+          <motion.p
+            key={tail.slice(0, 24)}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="text-h3 leading-snug text-ink"
+          >
+            {tail}
+          </motion.p>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/** The excerpt for the current question, with the cited line highlighted. */
+function QuestionCode({ q }: { q: VivaStart["questions"][number] }) {
+  const lines = q.excerpt.code.split("\n");
+  return (
+    <motion.figure
+      key={q.id}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35 }}
+      className="relative w-full max-w-[560px] overflow-hidden rounded-card bg-[#1f1f1f] text-left shadow-lift"
+    >
+      <figcaption className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-2">
+        <Cite file={q.file} line={q.line} tone="dark" full />
+      </figcaption>
+      <pre className="overflow-x-auto py-2 font-mono text-[12px] leading-[20px] text-[#e8eaed]">
+        {lines.map((l, j) => {
+          const n = q.excerpt.startLine + j;
+          return (
+            <div key={n} className={`px-4 whitespace-pre ${n === q.line ? "bg-[#4285f4]/30" : ""}`}>
+              <span className="mr-4 inline-block w-6 text-right text-[#6b6f75] select-none">{n}</span>
+              {l || " "}
+            </div>
+          );
+        })}
+      </pre>
+    </motion.figure>
   );
 }

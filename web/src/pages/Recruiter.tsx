@@ -122,6 +122,8 @@ export default function Recruiter() {
               </div>
             </div>
 
+            {state === "ready" && rows.length > 0 && <Kpis rows={hideDemo ? rows.filter((r) => !r.isDemo) : rows} />}
+
             {/* Filters */}
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <label className="flex h-10 min-w-[220px] flex-1 items-center gap-2 rounded-ctl bg-surface px-3 shadow-soft ring-1 ring-line focus-within:ring-2 focus-within:ring-accent-strong sm:flex-none">
@@ -171,16 +173,21 @@ export default function Recruiter() {
                     </thead>
                     <tbody className="divide-y divide-line">
                       {shown.map((r) => (
-                        <tr key={r.id} className="align-top hover:bg-subtle/50">
+                        <tr key={r.id} className="align-middle transition-colors hover:bg-subtle/50">
                           <td className="px-5 py-4">
-                            <Link to={`/report/${encodeURIComponent(r.id)}`} className="font-medium text-ink hover:text-accent-strong hover:underline">
-                              {r.repoName}
-                            </Link>
-                            <p className="text-small text-muted">
-                              @{r.owner}
-                              {r.attempt > 1 ? `, attempt ${r.attempt}` : ""}
-                              {r.isDemo ? ", demo" : ""}
-                            </p>
+                            <div className="flex items-center gap-3">
+                              <Avatar name={r.owner} />
+                              <div className="min-w-0">
+                                <Link to={`/report/${encodeURIComponent(r.id)}`} className="font-medium text-ink hover:text-accent-strong hover:underline">
+                                  @{r.owner}
+                                </Link>
+                                <p className="truncate text-small text-muted">
+                                  {r.repoName.split("/")[1] ?? r.repoName}
+                                  {r.attempt > 1 ? `, attempt ${r.attempt}` : ""}
+                                  {r.isDemo ? ", demo" : ""}
+                                </p>
+                              </div>
+                            </div>
                           </td>
                           <td className="px-3 py-4">{r.status === "unscored" ? <Unscored /> : <Score v={r.technical} />}</td>
                           <td className="px-3 py-4">{r.status === "unscored" ? null : <Score v={r.communication} />}</td>
@@ -267,10 +274,53 @@ function SortHead({
 
 function Score({ v }: { v: number | null }) {
   if (v === null) return null;
-  const tone = v >= 75 ? "text-[#137333]" : v >= 50 ? "text-[#8a5300]" : "text-[#b3261e]";
-  return <span className={`font-display text-h3 tabular-nums ${tone}`}>{v}</span>;
+  const color = v >= 75 ? "var(--color-good)" : v >= 50 ? "var(--color-warn)" : "var(--color-bad)";
+  return (
+    <div className="flex w-[104px] flex-col gap-1.5">
+      <span className="font-display text-h3 leading-none tabular-nums">{v}</span>
+      <span className="h-1.5 w-full overflow-hidden rounded-full bg-subtle" aria-hidden="true">
+        <span className="block h-full rounded-full" style={{ width: `${Math.max(3, v)}%`, background: color }} />
+      </span>
+    </div>
+  );
 }
 
+/** Initials in a soft circle; colour is stable per person so a candidate is recognisable across rows. */
+function Avatar({ name }: { name: string }) {
+  const palette = ["#e8f0fe:#1a73e8", "#e6f4ea:#137333", "#fef7e0:#8a5300", "#fce8e6:#b3261e", "#f3e8fd:#7b1fa2", "#e4f7fb:#00796b"];
+  const [bg, fg] = palette[[...name].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7) % palette.length].split(":");
+  const initials = name.replace(/[^a-zA-Z0-9]+/g, " ").trim().split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase();
+  return (
+    <span className="grid size-9 shrink-0 place-items-center rounded-full text-small font-semibold" style={{ background: bg, color: fg }} aria-hidden="true">
+      {initials || "?"}
+    </span>
+  );
+}
+
+/** At-a-glance summary of the pipeline. */
+function Kpis({ rows }: { rows: CandidateRow[] }) {
+  const scored = rows.filter((r) => r.status === "scored");
+  const avg = scored.length ? Math.round(scored.reduce((s, r) => s + (r.technical ?? 0), 0) / scored.length) : null;
+  const strong = scored.filter((r) => r.ownership === "strong").length;
+  const flagged = rows.filter((r) => r.integrity === "flagged").length;
+  const items: [string, string | number, string][] = [
+    ["Assessments", rows.length, `${scored.length} scored`],
+    ["Average technical score", avg ?? "–", "out of 100"],
+    ["Strong understanding", strong, "ready for a human interview"],
+    ["Integrity flagged", flagged, flagged ? "review before deciding" : "nothing flagged"],
+  ];
+  return (
+    <dl className="mt-8 grid grid-cols-2 gap-px overflow-hidden rounded-card bg-line shadow-soft lg:grid-cols-4">
+      {items.map(([label, value, sub]) => (
+        <div key={label} className="bg-surface px-5 py-5">
+          <dt className="text-small text-muted">{label}</dt>
+          <dd className="mt-2 font-display text-[2.25rem] leading-none tabular-nums">{value}</dd>
+          <dd className="mt-2 text-small text-muted">{sub}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
 function Pill({ label, tone }: { label: string; tone: string }) {
   return <span className={`inline-flex rounded-full px-2.5 py-0.5 text-small font-semibold whitespace-nowrap ${tone}`}>{label}</span>;
 }

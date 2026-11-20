@@ -67,7 +67,7 @@ export default function Landing() {
       <main id="main" tabIndex={-1} className="mx-auto max-w-[1100px] px-4 sm:px-6">
         {/* Hero */}
         <section className="grid items-center gap-12 pt-10 pb-20 sm:pt-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-16 lg:pt-20 lg:pb-28">
-          <div className="max-w-[540px]">
+          <div className="min-w-0 max-w-[540px]">
             <h1 className="font-display text-[clamp(2.75rem,7vw,4.5rem)] leading-[0.98]">Hire for real understanding.</h1>
             <p className="mt-6 text-h3 leading-relaxed text-muted">
               CVs and GitHub links can't tell you who actually understands their code. Nirupi interviews each candidate live, by voice, on
@@ -205,7 +205,7 @@ function Specimen() {
   const t = (delay: number) => (still ? { duration: 0 } : { delay, duration: 0.5, ease: [0.22, 1, 0.36, 1] as const });
 
   return (
-    <figure className="relative pb-24 sm:pb-16" aria-label="Example: a question Nirupi asks about a real line of code">
+    <figure className="relative min-w-0 pb-44 sm:pb-[290px]" aria-label="Example: a question Nirupi asks about a real line of code, and the report a hiring team receives">
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -241,7 +241,7 @@ function Specimen() {
         initial={{ opacity: 0, x: 16 }}
         animate={{ opacity: 1, x: 0 }}
         transition={t(1.05)}
-        className="absolute right-0 bottom-0 left-6 rounded-card bg-surface p-5 shadow-lift ring-1 ring-line sm:left-auto sm:w-[min(360px,85%)]"
+        className="absolute right-0 bottom-0 left-6 rounded-card bg-surface p-5 shadow-lift ring-1 ring-line sm:-right-3 sm:bottom-auto sm:left-auto sm:top-[150px] sm:w-[min(340px,78%)]"
       >
         <Cite file="lib/response.js" line={199} />
         <p className="mt-3 text-body font-medium">
@@ -249,6 +249,59 @@ function Specimen() {
         </p>
         <p className="mt-2 text-small text-muted">Asked out loud, about the candidate's own code.</p>
       </motion.figcaption>
+
+      {/* ...and what the hiring team gets back */}
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={t(1.6)}
+        className="absolute top-[345px] left-0 hidden w-[320px] rounded-card bg-surface p-5 shadow-lift ring-1 ring-line sm:block"
+        aria-hidden="true"
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-small font-medium text-muted">Example report</span>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-good-soft px-2.5 py-0.5 text-small font-semibold whitespace-nowrap text-[#137333]">
+            <span className="size-1.5 rounded-full bg-good" />
+            Strong understanding
+          </span>
+        </div>
+        <div className="mt-4 flex items-center gap-5">
+          <MiniRing value={82} label="Technical" delay={1.9} still={!!still} />
+          <MiniRing value={74} label="Communication" delay={2.05} still={!!still} />
+        </div>
+        <p className="mt-4 border-l-2 border-accent pl-3 text-small text-muted italic">
+          "A 204 has no body, so sending Content-Length would make proxies wait for bytes that never come."
+        </p>
+      </motion.div>
     </figure>
+  );
+}
+
+function MiniRing({ value, label, delay, still }: { value: number; label: string; delay: number; still: boolean }) {
+  const r = 20;
+  const c = 2 * Math.PI * r;
+  return (
+    <div className="flex items-center gap-2.5">
+      <svg width="48" height="48" viewBox="0 0 48 48" className="-rotate-90">
+        <circle cx="24" cy="24" r={r} fill="none" stroke="var(--color-subtle)" strokeWidth="5" />
+        <motion.circle
+          cx="24"
+          cy="24"
+          r={r}
+          fill="none"
+          stroke="var(--color-good)"
+          strokeWidth="5"
+          strokeLinecap="round"
+          strokeDasharray={c}
+          initial={{ strokeDashoffset: still ? c * (1 - value / 100) : c }}
+          animate={{ strokeDashoffset: c * (1 - value / 100) }}
+          transition={still ? { duration: 0 } : { delay, duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+        />
+      </svg>
+      <div>
+        <p className="font-display text-h3 leading-none tabular-nums">{value}</p>
+        <p className="mt-1 text-small text-muted">{label}</p>
+      </div>
+    </div>
   );
 }
