@@ -412,7 +412,7 @@ function Seal({ date, label }: { date: string; label: string }) {
         <circle cx="70" cy="70" r="66" fill="none" stroke="currentColor" strokeWidth="2" />
         <circle cx="70" cy="70" r="60" fill="none" stroke="currentColor" strokeWidth="0.75" strokeDasharray="2 3" />
         <circle cx="70" cy="70" r="38" fill="currentColor" fillOpacity="0.08" stroke="currentColor" strokeWidth="1.25" />
-        <text fill="currentColor" fontSize="12" fontWeight="700" letterSpacing="3" fontFamily="Google Sans Flex, sans-serif">
+        <text fill="currentColor" fontSize="11" fontWeight="700" letterSpacing="1.4" fontFamily="Google Sans Flex, sans-serif">
           <textPath href="#seal-top" startOffset="50%" textAnchor="middle">{label}</textPath>
         </text>
         <text fill="currentColor" fontSize="9.5" fontWeight="500" letterSpacing="1.5" fontFamily="Google Sans Flex, sans-serif">

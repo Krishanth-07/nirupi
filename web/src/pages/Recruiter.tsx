@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ArrowDown, ArrowUp, RotateCcw, Search } from "lucide-react";
 import { Logo } from "../components/ui/Logo";
 import { Button } from "../components/ui/Button";
-import { getCandidates, type CandidateRow } from "../lib/api";
+import { getCandidates, startDemo, type CandidateRow } from "../lib/api";
 
 type SortKey = "createdAt" | "technical" | "communication" | "ownerShare" | "flags";
 const KEY_STORAGE = "nirupi.recruiterKey";
@@ -117,13 +117,21 @@ export default function Recruiter() {
               <div>
                 <h1 className="font-display text-[clamp(2.25rem,5vw,3rem)] leading-[1.02]">Candidates</h1>
                 <p className="mt-2 text-muted">
-                  {state === "loading" ? "Loading…" : `${shown.length} of ${rows.length} assessments. Scores are evidence for your interviewers, not a decision.`}
+                  {state === "loading"
+                    ? "Loading…"
+                    : rows.length === 0
+                      ? "Every finished assessment lands here, with the evidence behind its scores."
+                      : `${shown.length} of ${rows.length} assessments. Scores are evidence for your interviewers, not a decision.`}
                 </p>
               </div>
             </div>
 
             {state === "ready" && rows.length > 0 && <Kpis rows={hideDemo ? rows.filter((r) => !r.isDemo) : rows} />}
 
+            {state === "ready" && rows.length === 0 ? (
+              <EmptyDashboard />
+            ) : (
+            <>
             {/* Filters */}
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <label className="flex h-10 min-w-[220px] flex-1 items-center gap-2 rounded-ctl bg-surface px-3 shadow-soft ring-1 ring-line focus-within:ring-2 focus-within:ring-accent-strong sm:flex-none">
@@ -151,9 +159,7 @@ export default function Recruiter() {
             </div>
 
             {state === "ready" && shown.length === 0 ? (
-              <p className="mt-10 text-muted">
-                {rows.length === 0 ? "No assessments yet. Candidates appear here once they finish their viva." : "No candidates match these filters."}
-              </p>
+              <p className="mt-10 text-muted">No candidates match these filters.</p>
             ) : (
               <>
                 {/* Desktop table */}
@@ -237,10 +243,58 @@ export default function Recruiter() {
                 </ul>
               </>
             )}
+            </>
+            )}
           </>
         )}
       </main>
     </div>
+  );
+}
+
+/** First visit: an empty answer sheet that says what will land here and how to get the first one. */
+function EmptyDashboard() {
+  const navigate = useNavigate();
+  const [demo, setDemo] = useState<"idle" | "loading" | "error">("idle");
+  const openDemo = async () => {
+    setDemo("loading");
+    try {
+      const { repoId } = await startDemo();
+      navigate(`/analyse?repoId=${encodeURIComponent(repoId)}&mode=assessment`);
+    } catch {
+      setDemo("error");
+    }
+  };
+  return (
+    <section className="sheet relative mt-10 overflow-hidden" aria-labelledby="empty-title">
+      <div aria-hidden="true" className="absolute inset-y-0 left-0 w-10 bg-paper-margin sm:w-20" />
+      <div aria-hidden="true" className="absolute inset-y-0 left-10 w-px bg-margin/50 sm:left-20" />
+      <div className="relative py-12 pr-6 pl-16 sm:py-16 sm:pr-12 sm:pl-28">
+        <h2 id="empty-title" className="font-heading text-h2">
+          No candidates yet
+        </h2>
+        <p className="mt-3 max-w-[560px] text-muted">
+          Send a candidate through an assessment and their report appears here: technical and communication scores, their own words
+          quoted against their code, the bug hunt, git history and integrity signals.
+        </p>
+        <div className="mt-8 flex flex-wrap items-center gap-3">
+          <Link
+            to="/"
+            className="tap-target inline-flex h-11 items-center rounded-ctl bg-accent-strong px-5 font-medium text-white hover:bg-[#1765cc] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong"
+          >
+            Start an assessment
+          </Link>
+          <Button variant="secondary" onClick={openDemo} disabled={demo === "loading"}>
+            {demo === "loading" ? "Opening the demo…" : "Try a demo assessment"}
+          </Button>
+        </div>
+        {demo === "error" && (
+          <p role="alert" className="mt-3 text-small text-[#b3261e]">
+            The demo isn't ready yet. Try again in a few seconds.
+          </p>
+        )}
+      </div>
+    </section>
   );
 }
 

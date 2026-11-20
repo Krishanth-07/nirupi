@@ -119,9 +119,9 @@ export default function VivaRoom() {
         </div>
       </header>
 
-      <main id="main" tabIndex={-1} className="mx-auto grid w-full max-w-[1100px] flex-1 gap-6 px-4 pb-6 sm:px-6 lg:min-h-0 lg:grid-cols-[240px_minmax(0,1fr)_340px]">
+      <main id="main" tabIndex={-1} className="mx-auto grid w-full max-w-[1100px] flex-1 grid-cols-[minmax(0,1fr)] gap-6 px-4 pb-6 sm:px-6 lg:min-h-0 lg:grid-cols-[240px_minmax(0,1fr)_340px]">
         {/* Left: progress */}
-        <aside className="flex flex-col gap-4 lg:min-h-0 lg:overflow-y-auto lg:pt-2">
+        <aside className="flex min-w-0 flex-col gap-4 lg:min-h-0 lg:overflow-y-auto lg:pt-2">
           <StepRail steps={steps} activeId={activeId} doneIds={doneIds} />
           {repoLabel && (
             <div className="hidden items-center gap-2 px-3 text-small text-muted lg:flex">

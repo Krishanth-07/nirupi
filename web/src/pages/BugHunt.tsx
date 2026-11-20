@@ -193,7 +193,7 @@ export default function BugHunt() {
       {phase === "loading" && <Preparing />}
       {phase === "error" && !task && <LoadError message={error ?? ""} onRetry={() => setAttempt((a) => a + 1)} />}
       {task && phase !== "loading" && (
-        <div className="grid flex-1 gap-6 lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="grid flex-1 grid-cols-[minmax(0,1fr)] gap-6 lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_340px]">
           {/* Editor */}
           <section className="flex min-h-[440px] flex-col overflow-hidden rounded-card bg-[#1f1f1f] shadow-lift lg:min-h-0">
             <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
