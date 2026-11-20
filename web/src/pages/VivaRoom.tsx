@@ -178,11 +178,19 @@ export default function VivaRoom() {
                         ? "You're muted"
                         : speaker === "ai"
                           ? "Nirupi is speaking"
-                          : speaker === "student"
-                            ? "Listening…"
-                            : "Your turn — speak naturally"
+                          : !live.turns.some((t) => t.role === "ai")
+                            ? "Your examiner is about to start…"
+                            : speaker === "student"
+                              ? "Listening…"
+                              : "Your turn — speak naturally"
                     }
-                    sub={live.muted ? "Unmute when you're ready to answer." : "Take your time. You can interrupt at any time."}
+                    sub={
+                      live.muted
+                        ? "Unmute when you're ready to answer."
+                        : !live.turns.some((t) => t.role === "ai")
+                          ? "This usually takes a couple of seconds."
+                          : "Take your time. You can interrupt at any time."
+                    }
                   />
                   <ControlBar muted={live.muted} onToggleMute={live.toggleMute} onEnd={live.end} />
                 </>

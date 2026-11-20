@@ -178,6 +178,8 @@ async function handle(ws: WebSocket, _req: IncomingMessage, url: URL) {
         });
 
   let session: Session | null = null;
+  /** Set once Gemini actually says or does something (used by the silence watchdog below). */
+  let heardFromGemini = false;
   const onMessage = (m: LiveServerMessage) => {
     if (m.toolCall?.functionCalls) {
       session?.sendToolResponse({
@@ -305,27 +307,67 @@ async function handle(ws: WebSocket, _req: IncomingMessage, url: URL) {
     // Anything else — including text — is ignored: answers must be spoken.
   });
 
-  try {
+  // Each Gemini session gets a number, so a replaced session's late "close" event is ignored.
+  let generation = 0;
+  const openSession = async () => {
+    const mine = ++generation;
     session = await gemini().live.connect({
       model: LIVE_MODEL,
       config,
       callbacks: {
-        onmessage: onMessage,
+        onmessage: (m) => {
+          if (mine !== generation) return;
+          if (m.toolCall || m.serverContent?.modelTurn || m.serverContent?.outputTranscription) heardFromGemini = true;
+          onMessage(m);
+        },
         onerror: (e) => console.error("[relay] gemini error", (e as ErrorEvent).message ?? e),
         onclose: (e) => {
-          if (finished || ws.readyState !== WebSocket.OPEN) return;
+          if (mine !== generation || finished || ws.readyState !== WebSocket.OPEN) return;
           fail(e.code === 1000 ? "The session ended." : "The voice connection dropped. Let's pick it back up.", 4011);
         },
       },
     });
-    if (ws.readyState !== WebSocket.OPEN) return void cleanup();
     // The server (not the browser) starts the conversation.
     session.sendRealtimeInput({
       text: mode === "viva" ? "The student has joined and is ready for the viva." : "The student has started the bug hunt.",
     });
+  };
+
+  /**
+   * Watchdog: on a busy or rate-limited key, Gemini sometimes accepts a session and then never answers,
+   * with no error. If the examiner hasn't said anything within 10s, open a fresh session once;
+   * if that's silent too, end with a clear message instead of leaving the student waiting.
+   */
+  const SILENCE_MS = 10_000;
+  const watchdog = async (attempt: number) => {
+    if (heardFromGemini || finished || ws.readyState !== WebSocket.OPEN) return;
+    if (attempt === 1) {
+      console.warn(`[relay] ${vivaId}: no reply from Gemini in ${SILENCE_MS / 1000}s; opening a fresh session`);
+      const old = session;
+      try {
+        await openSession(); // bumps the generation, so the old session's close is ignored
+        old?.close();
+        setTimeout(() => void watchdog(2), SILENCE_MS);
+      } catch (err) {
+        console.error("[relay] retry connect failed", err);
+        fail("We couldn't reach the examiner. Please try again in a minute.", 4012);
+      }
+    } else {
+      console.warn(`[relay] ${vivaId}: still no reply from Gemini after a retry`);
+      fail(
+        "The examiner isn't responding right now. Google's voice service may be busy, or this API key may have hit its limit. Please try again in a minute.",
+        4014,
+      );
+    }
+  };
+
+  try {
+    await openSession();
+    if (ws.readyState !== WebSocket.OPEN) return void cleanup();
     dirty = true; // record bugStartedAt / reconnect events straight away
     void persist();
     send({ t: "ready", stage });
+    setTimeout(() => void watchdog(1), SILENCE_MS);
   } catch (err) {
     console.error("[relay] connect failed", err);
     fail("We couldn't reach the examiner. Please try again.", 4012);
