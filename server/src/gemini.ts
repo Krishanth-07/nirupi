@@ -16,7 +16,7 @@ let mainModelDownUntil = 0;
 const mainModelDown = () => Date.now() < mainModelDownUntil;
 
 // A second fallback, so one overloaded or exhausted model can never block the app.
-export const TEXT_FALLBACK_MODEL_2 = process.env.GEMINI_TEXT_FALLBACK_MODEL_2 || "gemini-3.1-flash-lite";
+export const TEXT_FALLBACK_MODEL_2 = process.env.GEMINI_TEXT_FALLBACK_MODEL_2 || "gemini-3.5-flash-lite";
 const MODELS = [...new Set([TEXT_MODEL, TEXT_FALLBACK_MODEL, TEXT_FALLBACK_MODEL_2])];
 
 /** Models whose daily quota is used up → when we may try them again. */

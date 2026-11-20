@@ -91,7 +91,7 @@ export default function Recruiter() {
     <div className="min-h-dvh">
       <header className="mx-auto flex max-w-[1200px] items-center justify-between gap-4 px-4 py-5 sm:px-6">
         <Logo />
-        <span className="font-heading text-body text-muted">Recruiter view</span>
+        <span className="font-heading text-body text-muted">Hiring dashboard</span>
       </header>
 
       <main id="main" tabIndex={-1} className="mx-auto max-w-[1200px] px-4 pb-20 sm:px-6">
@@ -117,7 +117,7 @@ export default function Recruiter() {
               <div>
                 <h1 className="font-display text-[clamp(2.25rem,5vw,3rem)] leading-[1.02]">Candidates</h1>
                 <p className="mt-2 text-muted">
-                  {state === "loading" ? "Loading…" : `${shown.length} of ${rows.length} vivas. Scores are a guide for the interview, not a decision.`}
+                  {state === "loading" ? "Loading…" : `${shown.length} of ${rows.length} assessments. Scores are evidence for your interviewers, not a decision.`}
                 </p>
               </div>
             </div>
@@ -130,7 +130,7 @@ export default function Recruiter() {
                 <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search repo or user" className="w-full bg-transparent outline-none placeholder:text-muted" />
               </label>
               <label className="flex items-center gap-2 text-small">
-                <span className="text-muted">Ownership</span>
+                <span className="text-muted">Understanding</span>
                 <select
                   value={ownership}
                   onChange={(e) => setOwnership(e.target.value as typeof ownership)}
@@ -144,13 +144,13 @@ export default function Recruiter() {
               </label>
               <label className="tap-target flex items-center gap-2 text-small">
                 <input type="checkbox" checked={hideDemo} onChange={(e) => setHideDemo(e.target.checked)} className="size-4 accent-[#1a73e8]" />
-                Hide demo vivas
+                Hide demo assessments
               </label>
             </div>
 
             {state === "ready" && shown.length === 0 ? (
               <p className="mt-10 text-muted">
-                {rows.length === 0 ? "No vivas yet. Once students finish a viva, they'll appear here." : "No candidates match these filters."}
+                {rows.length === 0 ? "No assessments yet. Candidates appear here once they finish their viva." : "No candidates match these filters."}
               </p>
             ) : (
               <>
@@ -162,7 +162,7 @@ export default function Recruiter() {
                         <th className="px-5 py-3 font-medium">Candidate</th>
                         <SortHead label="Technical" k="technical" sort={sort} onSort={toggleSort} />
                         <SortHead label="Communication" k="communication" sort={sort} onSort={toggleSort} />
-                        <th className="px-3 py-3 font-medium">Ownership</th>
+                        <th className="px-3 py-3 font-medium">Understanding</th>
                         <th className="px-3 py-3 font-medium">Bug hunt</th>
                         <SortHead label="Owner's commits" k="ownerShare" sort={sort} onSort={toggleSort} />
                         <SortHead label="Integrity" k="flags" sort={sort} onSort={toggleSort} />
@@ -320,8 +320,8 @@ function KeyGate({ error, onSubmit }: { error: string; onSubmit: (key: string) =
   };
   return (
     <form onSubmit={submit} className="mt-10 max-w-[440px]">
-      <h1 className="font-display text-[2.25rem] leading-tight">Recruiter access</h1>
-      <p className="mt-3 text-muted">Enter the access key your team set up for Nirupi.</p>
+      <h1 className="font-display text-[2.25rem] leading-tight">Hiring dashboard access</h1>
+      <p className="mt-3 text-muted">Enter the access key your hiring team set up for Nirupi.</p>
       <label htmlFor="key" className="mt-8 mb-2 block text-small font-medium">
         Access key
       </label>

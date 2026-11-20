@@ -102,18 +102,23 @@ export async function analyseRepo(id: string, onEvent: (e: AnalyseEvent) => void
 
 /* ---------------- Step 4: live viva ---------------- */
 
+/** practice = students training on their own; assessment = companies hiring (strict rules, visible to the company). */
+export type VivaMode = "practice" | "assessment";
+export const parseMode = (v: string | null | undefined): VivaMode => (v === "practice" ? "practice" : "assessment");
+
 export interface VivaStart {
   vivaId: string;
   repoName: string;
+  mode: VivaMode;
   attempt: number;
   questions: { id: string; file: string; line: number; excerpt: { startLine: number; code: string } }[];
 }
 
-export async function startViva(repoId: string): Promise<VivaStart> {
+export async function startViva(repoId: string, mode: VivaMode): Promise<VivaStart> {
   const res = await fetch("/api/viva", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ repoId }),
+    body: JSON.stringify({ repoId, mode }),
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body.error || "We couldn't start your viva. Please try again.");
@@ -239,6 +244,7 @@ export interface Report {
   totalAttempts: number;
   identityVerified: false;
   isDemo: boolean;
+  mode?: VivaMode;
   git: GitEvidence | null;
   integrity: IntegritySummary;
   skills: { name: string; score0to10: number; evidence: string }[];

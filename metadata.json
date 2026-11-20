@@ -1,6 +1,6 @@
 {
   "name": "Nirupi",
-  "description": "Prove you built it. Defend your own GitHub project in a live AI voice viva, then fix a bug in your own code.",
+  "description": "Hire students for real understanding: a live AI voice viva on each candidate's own GitHub project, a bug hunt, and an evidence-backed report for hiring teams.",
   "requestFramePermissions": ["microphone"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -6,7 +6,7 @@ import { Logo } from "../components/ui/Logo";
 import { Button } from "../components/ui/Button";
 import { Cite } from "../components/ui/Cite";
 import { ExamRules } from "../components/viva/ExamRules";
-import { analyseRepo, formatBytes, getRepoDoc, ingestRepo, type Analysis, type RepoDoc } from "../lib/api";
+import { analyseRepo, formatBytes, getRepoDoc, ingestRepo, parseMode, type Analysis, type RepoDoc } from "../lib/api";
 type StageId = "download" | "read" | "save" | "map" | "questions";
 const STAGES: StageId[] = ["download", "read", "save", "map", "questions"];
 const MIN_STAGE_MS = 650; // keep each real step on screen long enough to read
@@ -26,6 +26,7 @@ export default function Analyse() {
   const url = params.get("repo") ?? "";
   /** An already-analysed project (demo mode) opens straight to the ready screen. */
   const repoIdParam = params.get("repoId");
+  const mode = parseMode(params.get("mode"));
   const navigate = useNavigate();
   const [progress, setProgress] = useState<Progress>(initialProgress);
   const [repo, setRepo] = useState<RepoDoc | null>(null);
@@ -135,7 +136,12 @@ export default function Analyse() {
               </Swap>
             ) : repo && analysis ? (
               <Swap key="done">
-                <Ready repo={repo} analysis={analysis} onStart={() => navigate(`/viva?repoId=${encodeURIComponent(repo.id)}`)} />
+                <Ready
+                  repo={repo}
+                  analysis={analysis}
+                  practice={mode === "practice"}
+                  onStart={() => navigate(`/viva?repoId=${encodeURIComponent(repo.id)}&mode=${mode}`)}
+                />
               </Swap>
             ) : (
               <Swap key="working">
@@ -259,7 +265,7 @@ function StepIcon({ state }: { state: "done" | "active" | "pending" }) {
 
 const LANG_COLORS = ["#4285F4", "#34A853", "#F9AB00", "#EA4335", "#A142F4", "#24C1E0", "#9AA0A6"];
 
-function Ready({ repo, analysis, onStart }: { repo: RepoDoc; analysis: Analysis; onStart: () => void }) {
+function Ready({ repo, analysis, practice, onStart }: { repo: RepoDoc; analysis: Analysis; practice: boolean; onStart: () => void }) {
   const [showQuestions, setShowQuestions] = useState(false);
   // The server only sends question wording for the presenter's demo project; real vivas keep it for the examiner.
   const canPreview = analysis.questions.some((q) => q.question);
@@ -270,7 +276,7 @@ function Ready({ repo, analysis, onStart }: { repo: RepoDoc; analysis: Analysis;
           Demo project, prepared in advance
         </p>
       )}
-      <h1 className="font-display text-[clamp(2.25rem,5vw,3rem)] leading-[1.02]">Your viva is ready</h1>
+      <h1 className="font-display text-[clamp(2.25rem,5vw,3rem)] leading-[1.02]">{practice ? "Your practice viva is ready" : "Your assessment is ready"}</h1>
       <p className="mt-4 text-h3 leading-relaxed text-muted">{analysis.summary}</p>
       {analysis.techStack.length > 0 && (
         <ul className="mt-5 flex flex-wrap gap-2" aria-label="Tech stack">
@@ -285,11 +291,14 @@ function Ready({ repo, analysis, onStart }: { repo: RepoDoc; analysis: Analysis;
       {/* The rules come first, so nobody meets them for the first time mid-exam. */}
       <section aria-labelledby="rules" className="mt-12 rounded-card bg-surface p-6 shadow-soft sm:p-8">
         <h2 id="rules" className="font-heading text-h2">
-          How the viva works
+          {practice ? "How practice works" : "How the assessment works"}
         </h2>
-        <p className="mt-1 text-muted">About 8 minutes: three spoken questions, then a 3-minute bug hunt. Please read these before you start.</p>
+        <p className="mt-1 text-muted">
+          About 8 minutes: three spoken questions, then a 3-minute bug hunt.{" "}
+          {practice ? "Only you will see this report." : "The hiring team sees the report. Please read these before you start."}
+        </p>
         <div className="mt-6">
-          <ExamRules />
+          <ExamRules practice={practice} />
         </div>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
           <Button size="lg" onClick={onStart}>

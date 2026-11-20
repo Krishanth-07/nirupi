@@ -9,7 +9,7 @@ import { TranscriptPanel } from "../components/viva/TranscriptPanel";
 import { StepRail, WARMUP_STEPS, type RailStep } from "../components/viva/StepRail";
 import { ControlBar, MicPill } from "../components/viva/ControlBar";
 import { useLiveSession, type LiveError, type Speaker } from "../lib/live/useLiveSession";
-import { liveRelayPath, startViva, type VivaStart } from "../lib/api";
+import { liveRelayPath, parseMode, startViva, type VivaStart } from "../lib/api";
 import { enterExamMode, exitExamMode, useIntegrity } from "../lib/integrity";
 import { ExamRules, ExamWarningOverlay, RulesConsent } from "../components/viva/ExamRules";
 
@@ -20,6 +20,8 @@ export default function VivaRoom() {
   const location = useLocation();
   const repoId = params.get("repoId") ?? (location.state as { repoId?: string } | null)?.repoId ?? null;
   const isViva = !!repoId;
+  const mode = parseMode(params.get("mode"));
+  const practice = mode === "practice";
 
   const navigate = useNavigate();
   const live = useLiveSession();
@@ -65,7 +67,7 @@ export default function VivaRoom() {
       isViva
         ? {
             relay: async () => {
-              const v = await startViva(repoId!);
+              const v = await startViva(repoId!, mode);
               vivaIdRef.current = v.vivaId;
               setViva(v);
               return liveRelayPath(v.vivaId, "viva");
@@ -135,7 +137,8 @@ export default function VivaRoom() {
               animate={{ opacity: 1, y: 0 }}
               className="absolute top-5 rounded-full bg-accent-soft px-3 py-1 text-small font-medium text-accent-strong"
             >
-              {questionNo > 0 ? `Question ${questionNo} of 3` : stage === "done" ? "Wrapping up" : "Getting started"}
+              {practice ? "Practice, " : ""}
+              {questionNo > 0 ? `question ${questionNo} of 3` : stage === "done" ? "wrapping up" : "getting started"}
               {viva && viva.attempt > 1 ? `, attempt ${viva.attempt}` : ""}
             </motion.span>
           )}
@@ -160,7 +163,7 @@ export default function VivaRoom() {
               transition={{ duration: 0.2 }}
               className="flex w-full max-w-[380px] flex-col items-center gap-6 text-center"
             >
-              {live.status === "idle" && <IdleIntro isViva={isViva} onStart={begin} />}
+              {live.status === "idle" && <IdleIntro isViva={isViva} practice={practice} onStart={begin} />}
               {live.status === "connecting" && (
                 <StatusLine
                   title={isViva ? "Preparing your examiner…" : "Connecting to your examiner…"}
@@ -214,7 +217,7 @@ export default function VivaRoom() {
   );
 }
 
-function IdleIntro({ isViva, onStart }: { isViva: boolean; onStart: () => void }) {
+function IdleIntro({ isViva, practice, onStart }: { isViva: boolean; practice: boolean; onStart: () => void }) {
   const [agreed, setAgreed] = useState(false);
   return (
     <>
@@ -224,8 +227,8 @@ function IdleIntro({ isViva, onStart }: { isViva: boolean; onStart: () => void }
       </div>
       {isViva && (
         <div className="flex w-full flex-col gap-5 rounded-card bg-bg p-5 text-left ring-1 ring-line">
-          <ExamRules compact />
-          <RulesConsent checked={agreed} onChange={setAgreed} />
+          <ExamRules compact practice={practice} />
+          <RulesConsent checked={agreed} onChange={setAgreed} practice={practice} />
         </div>
       )}
       <Button

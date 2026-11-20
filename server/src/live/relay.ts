@@ -5,7 +5,7 @@ import { gemini, LIVE_MODEL } from "../gemini.js";
 import { buildVivaInstruction, LANGUAGE_RULE, liveConfig, projectVocabulary, VIVA_STAGES, VIVA_TOOLS, WARMUP_INSTRUCTION } from "../ai/live.js";
 import { buildBugHuntInstruction } from "../ai/bugHunt.js";
 import { getDoc, getRepo, putDoc } from "../store.js";
-import type { VivaDoc, VivaTurn } from "../routes/viva.js";
+import { vivaMode, type VivaDoc, type VivaTurn } from "../routes/viva.js";
 import { countViolations, emptyIntegrity, INTEGRITY_KINDS, MAX_VIOLATIONS, VIOLATION_KINDS, type IntegrityKind, type IntegrityLog } from "./integrity.js";
 
 /**
@@ -123,6 +123,7 @@ async function handle(ws: WebSocket, _req: IncomingMessage, url: URL) {
   const repo = await getRepo(viva.repoId);
   if (!repo?.analysis) return fail("We couldn't find the project for this viva.", 4004);
   active.set(key, ws);
+  const practice = vivaMode(viva) === "practice";
 
   /* ---------------- state recorded by the server ---------------- */
   let stage = mode === "bug" ? "bug" : viva.stage || "warmup";
@@ -295,8 +296,9 @@ async function handle(ws: WebSocket, _req: IncomingMessage, url: URL) {
         if (VIOLATION_KINDS.includes(kind)) {
           const violations = countViolations(integrity.events);
           // The server decides the count, so the browser can't reset or hide it.
-          send({ t: "violation", count: violations, max: MAX_VIOLATIONS });
-          if (violations >= MAX_VIOLATIONS) void terminate(violations);
+          // Practice sessions only warn (max 0 = no limit); assessments end at the limit.
+          send({ t: "violation", count: violations, max: practice ? 0 : MAX_VIOLATIONS });
+          if (!practice && violations >= MAX_VIOLATIONS) void terminate(violations);
         }
       }
     }

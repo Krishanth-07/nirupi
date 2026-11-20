@@ -26,7 +26,9 @@ recruiterRouter.get("/recruiter/candidates", async (req, res) => {
   const [reports, vivas] = await Promise.all([listDocs<ReportDoc>("reports"), listDocs<VivaDoc>("vivas")]);
   const reported = new Set(reports.map((r) => r.id));
 
+  // Practice vivas belong to the student; companies only see assessments.
   const rows = reports
+    .filter((r) => r.mode !== "practice")
     .filter((r) => r.scoringVersion === SCORING_VERSION || r.technicalScore0to100 !== undefined)
     .map((r) => ({
       id: r.id,
@@ -52,6 +54,7 @@ recruiterRouter.get("/recruiter/candidates", async (req, res) => {
 
   // Finished vivas that haven't been scored yet — opening them generates the report.
   const pendingRows = vivas
+    .filter((v) => v.mode !== "practice")
     .filter((v) => !reported.has(v.id) && v.status !== "live" && (v.turns ?? []).some((t) => t.role === "student"))
     .map((v) => ({
       id: v.id,

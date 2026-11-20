@@ -3,8 +3,10 @@ import { Maximize } from "lucide-react";
 import { Button } from "../ui/Button";
 import type { ViolationReason } from "../../lib/integrity";
 
-/** The exam rules, shown before the viva starts. Kept short, plain and specific. */
-export const EXAM_RULES: { title: string; body: string }[] = [
+type Rule = { title: string; body: string };
+
+/** Assessment rules (for hiring): strict, shown before the viva starts. Kept short, plain and specific. */
+export const ASSESSMENT_RULES: Rule[] = [
   { title: "Answer out loud, in your own words", body: "The examiner only listens to your voice. Typed answers aren't accepted." },
   {
     title: "Stay on this page, in full screen",
@@ -12,14 +14,27 @@ export const EXAM_RULES: { title: string; body: string }[] = [
   },
   { title: "Close other apps and AI tools", body: "Have only your own code open. The time you take before each answer is measured." },
   { title: "Three minutes for the bug hunt", body: "The timer starts when you press start and can't be paused or reset. Copy and paste are turned off." },
-  { title: "Every attempt counts", body: "You can retake the viva, but each attempt is shown on your report." },
+  { title: "The company sees every attempt", body: "You can retake the assessment, but each attempt is shown to the hiring team." },
   { title: "Your voice is transcribed", body: "The transcript is saved for your report. A quiet room and headphones work best." },
 ];
 
-export function ExamRules({ compact = false }: { compact?: boolean }) {
+/** Practice rules (for training): same format as the real thing, but nothing ends the session. */
+export const PRACTICE_RULES: Rule[] = [
+  { title: "Answer out loud, in your own words", body: "It's the same viva a company would run, so treat it like the real thing." },
+  {
+    title: "Exam rules are on, but only as warnings",
+    body: "Leaving the page or full screen shows a warning, just like an assessment, but it won't end your practice.",
+  },
+  { title: "Three minutes for the bug hunt", body: "Practise thinking aloud while you debug. Copy and paste are turned off, as in an assessment." },
+  { title: "Only you see this report", body: "Practice reports never appear in a company's hiring dashboard. Retake as often as you like." },
+  { title: "Your voice is transcribed", body: "You'll get the transcript and a list of what to practise next. Headphones work best." },
+];
+
+export function ExamRules({ compact = false, practice = false }: { compact?: boolean; practice?: boolean }) {
+  const rules = practice ? PRACTICE_RULES : ASSESSMENT_RULES;
   return (
     <ol className={`flex flex-col ${compact ? "gap-2.5" : "gap-4"}`}>
-      {EXAM_RULES.map((r, i) => (
+      {rules.map((r, i) => (
         <li key={r.title} className="flex gap-3">
           <span className="w-4 shrink-0 pt-px font-heading text-muted tabular-nums">{i + 1}</span>
           <div>
@@ -33,7 +48,7 @@ export function ExamRules({ compact = false }: { compact?: boolean }) {
 }
 
 /** "I understand" checkbox that gates the Start button. */
-export function RulesConsent({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+export function RulesConsent({ checked, onChange, practice = false }: { checked: boolean; onChange: (v: boolean) => void; practice?: boolean }) {
   return (
     <label className="tap-target flex cursor-pointer items-start gap-3 rounded-ctl text-left">
       <input
@@ -42,7 +57,9 @@ export function RulesConsent({ checked, onChange }: { checked: boolean; onChange
         onChange={(e) => onChange(e.target.checked)}
         className="mt-1 size-4 shrink-0 accent-[#1a73e8]"
       />
-      <span className="text-body">I've read the rules and I'm ready. I'll answer on my own, without help.</span>
+      <span className="text-body">
+        {practice ? "I've read how practice works and I'm ready." : "I've read the rules and I'm ready. I'll answer on my own, without help."}
+      </span>
     </label>
   );
 }
@@ -89,20 +106,25 @@ export function ExamWarningOverlay({
           aria-describedby="exam-warning-body"
         >
           <motion.div initial={{ y: 12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="w-full max-w-[460px] rounded-card bg-surface p-6 shadow-lift">
-            {count > 0 && (
-              <p className="inline-flex rounded-full bg-bad-soft px-3 py-1 text-small font-semibold text-[#b3261e]">
-                Violation {count} of {max}
-              </p>
-            )}
+            {count > 0 &&
+              (max === 0 ? (
+                <p className="inline-flex rounded-full bg-warn-soft px-3 py-1 text-small font-semibold text-[#8a5300]">Practice warning {count}</p>
+              ) : (
+                <p className="inline-flex rounded-full bg-bad-soft px-3 py-1 text-small font-semibold text-[#b3261e]">
+                  Violation {count} of {max}
+                </p>
+              ))}
             <h2 id="exam-warning-title" className="mt-3 font-heading text-h2">
               {REASON_TEXT[reason]}
             </h2>
             <p id="exam-warning-body" className="mt-2 text-muted">
               {count === 0
                 ? "Please go back to full screen to continue your viva."
-                : left === 1
-                  ? "This is recorded in your report. One more violation ends your viva and flags the report."
-                  : `This is recorded in your report. ${left} more violations end your viva and flag the report.`}
+                : max === 0
+                  ? "In a company assessment this would count as a violation, and the third one ends the viva. Practice staying on the page."
+                  : left === 1
+                    ? "This is recorded in your report. One more violation ends your viva and flags the report."
+                    : `This is recorded in your report. ${left} more violations end your viva and flag the report.`}
             </p>
             {problem && (
               <p role="alert" className="mt-4 rounded-ctl bg-warn-soft px-4 py-3 text-small text-[#8a5300]">

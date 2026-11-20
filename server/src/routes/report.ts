@@ -6,7 +6,7 @@ import { summariseIntegrity, type IntegritySummary } from "../live/integrity.js"
 import { BUG_HUNT_SECONDS } from "../ai/bugHunt.js";
 import { isVivaLive } from "../live/relay.js";
 import { QuotaError } from "../gemini.js";
-import type { VivaDoc } from "./viva.js";
+import { vivaMode, type VivaDoc } from "./viva.js";
 
 export interface ReportDoc extends Scores {
   id: string; // same as the viva id
@@ -22,6 +22,8 @@ export interface ReportDoc extends Scores {
   /** No sign-in yet: the report shows who owns the repo, not who took the viva. */
   identityVerified: false;
   isDemo: boolean;
+  /** practice = the student's own training report; assessment = for hiring. */
+  mode: "practice" | "assessment";
   git: GitEvidence | null;
   integrity: IntegritySummary;
   questions: { id: string; file: string; line: number; question: string }[];
@@ -114,7 +116,7 @@ function ensureReport(vivaId: string): Promise<ReportDoc> {
       Promise.race([ensureGitEvidence(repo), new Promise<undefined>((r) => setTimeout(() => r(undefined), 12_000))]).catch(() => undefined),
       listDocs<VivaDoc>("vivas"),
     ]);
-    const attempts = allVivas.filter((v) => v.repoId === repo.id && (v.turns?.length ?? 0) > 0);
+    const attempts = allVivas.filter((v) => v.repoId === repo.id && vivaMode(v) === vivaMode(viva) && (v.turns?.length ?? 0) > 0);
 
     const started = Date.now();
     const scores = await scoreViva({
@@ -141,6 +143,7 @@ function ensureReport(vivaId: string): Promise<ReportDoc> {
       totalAttempts: Math.max(attempts.length, viva.attempt ?? 1),
       identityVerified: false,
       isDemo: !!repo.isDemo,
+      mode: vivaMode(viva),
       git: git ?? null,
       integrity: summariseIntegrity(viva.integrity),
       questions: viva.questions,

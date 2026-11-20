@@ -59,9 +59,9 @@ export default function Report() {
 /* ================================================================== */
 
 const VERDICT = {
-  strong: { label: "Strong ownership", tone: "bg-good-soft text-[#137333]", dot: "bg-good" },
-  moderate: { label: "Moderate ownership", tone: "bg-warn-soft text-[#8a5300]", dot: "bg-warn" },
-  weak: { label: "Weak ownership", tone: "bg-bad-soft text-[#b3261e]", dot: "bg-bad" },
+  strong: { label: "Strong understanding", tone: "bg-good-soft text-[#137333]", dot: "bg-good" },
+  moderate: { label: "Moderate understanding", tone: "bg-warn-soft text-[#8a5300]", dot: "bg-warn" },
+  weak: { label: "Weak understanding", tone: "bg-bad-soft text-[#b3261e]", dot: "bg-bad" },
 } as const;
 
 const STAGE_LABEL: Record<string, string> = {
@@ -109,6 +109,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 }
 
 function ReportSheet({ r }: { r: ReportData }) {
+  const practice = r.mode === "practice";
   const verdict = VERDICT[r.ownershipVerdict];
   const date = new Date(r.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
   const bug = r.bugHunt?.result ?? "not_attempted";
@@ -122,17 +123,19 @@ function ReportSheet({ r }: { r: ReportData }) {
 
       <div className="relative flex flex-col gap-10 px-5 py-8 sm:px-8 sm:py-10 lg:pr-12 lg:pl-0">
         {/* Title block */}
-        <Row margin={<Seal date={date} />}>
+        <Row margin={<Seal date={date} label={practice ? "NIRUPI PRACTICE" : "NIRUPI ASSESSMENT"} />}>
           <div className="flex flex-col gap-5 lg:pt-2">
             <div>
               <h1 className="font-display text-[clamp(2.25rem,5.5vw,3.5rem)] leading-[1] break-words">{r.repoName.split("/")[1] ?? r.repoName}</h1>
               <p className="mt-3 text-h3 text-muted">
-                Viva on <span className="font-medium text-ink">@{r.owner}</span>'s repo, {date}
+                {practice ? "Practice by " : "Candidate "}
+                <span className="font-medium text-ink">@{r.owner}</span>, {date}
               </p>
               <p className="mt-1 text-small text-muted">
-                {r.totalAttempts > 1 ? `Attempt ${r.attempt} of ${r.totalAttempts} on this repo. ` : "First attempt on this repo. "}
-                The person who took the viva didn't sign in, so their identity isn't verified.
-                {r.isDemo ? " This was a demo project." : ""}
+                {practice
+                  ? "A private practice report. It's never shown to companies. "
+                  : `${r.totalAttempts > 1 ? `Attempt ${r.attempt} of ${r.totalAttempts} on this repo.` : "First attempt on this repo."} Candidate identity isn't verified, as there's no sign-in yet. `}
+                {r.isDemo ? "This was a demo project." : ""}
               </p>
               <a
                 href={r.repoUrl}
@@ -168,7 +171,7 @@ function ReportSheet({ r }: { r: ReportData }) {
         {/* Scores */}
         <Row>
           <div className="grid gap-8 rounded-card bg-bg/60 p-6 ring-1 ring-line sm:grid-cols-2">
-            <ScoreRing value={r.technicalScore0to100} label="Technical understanding" sub="Their grasp of their own code" />
+            <ScoreRing value={r.technicalScore0to100} label="Technical understanding" sub="How deeply they know their own project" />
             <ScoreRing value={r.communicationScore0to100} label="Communication" sub="How clearly they explained it" />
             <p className="text-small text-muted sm:col-span-2">
               Scored independently. Language, accent and grammar never lower the technical score. Questions make up 75% of it and the
@@ -176,6 +179,16 @@ function ReportSheet({ r }: { r: ReportData }) {
             </p>
           </div>
         </Row>
+
+        {/* Practice: the most useful thing for a candidate is what to work on */}
+        {practice && (
+          <>
+            <SectionTitle>What to practise next</SectionTitle>
+            <Row>
+              <Notes items={practiseNext(r)} empty="Nothing stood out. Try a harder project, or practise explaining trade-offs out loud." />
+            </Row>
+          </>
+        )}
 
         {/* Answers, marked */}
         <SectionTitle>Answers</SectionTitle>
@@ -279,6 +292,20 @@ function ReportSheet({ r }: { r: ReportData }) {
   );
 }
 
+/** Concrete next steps for a practising candidate: weak answers first, then the assessor's concerns. */
+function practiseNext(r: ReportData): string[] {
+  const items: string[] = [];
+  r.questions.forEach((q, i) => {
+    const s = r.perQuestion?.find((p) => p.id === q.id);
+    const file = q.file.split("/").pop();
+    if (!s?.answered) items.push(`Question ${i + 1} (${file}:${q.line}): prepare to explain why this code is written the way it is.`);
+    else if (s.score0to10 < 7) items.push(`Question ${i + 1} (${file}:${q.line}): ${s.note || "go deeper on what would break and why."}`);
+  });
+  if (r.bugHunt && r.bugHunt.result !== "solved") items.push("Bug hunt: practise reading a function line by line out loud before changing anything.");
+  for (const c of r.concerns) if (items.length < 6) items.push(c);
+  return items.slice(0, 6);
+}
+
 /* ---------------- evidence sections ---------------- */
 
 const fmtDate = (iso?: string) => (iso ? new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "unknown");
@@ -374,10 +401,10 @@ function IntegritySection({ r }: { r: ReportData }) {
 /* ---------------- pieces ---------------- */
 
 /** The embossed seal. Stamps in once when the report opens. */
-function Seal({ date }: { date: string }) {
+function Seal({ date, label }: { date: string; label: string }) {
   return (
     <div className="flex justify-start lg:justify-end">
-      <svg viewBox="0 0 140 140" className="animate-stamp size-[112px] text-accent-strong lg:size-[132px]" role="img" aria-label={`Verified by Nirupi, ${date}`}>
+      <svg viewBox="0 0 140 140" className="animate-stamp size-[112px] text-accent-strong lg:size-[132px]" role="img" aria-label={`${label === "NIRUPI PRACTICE" ? "Nirupi practice" : "Nirupi assessment"}, ${date}`}>
         <defs>
           <path id="seal-top" d="M 70 70 m -50 0 a 50 50 0 1 1 100 0" />
           <path id="seal-bottom" d="M 70 70 m -54 0 a 54 54 0 0 0 108 0" />
@@ -386,7 +413,7 @@ function Seal({ date }: { date: string }) {
         <circle cx="70" cy="70" r="60" fill="none" stroke="currentColor" strokeWidth="0.75" strokeDasharray="2 3" />
         <circle cx="70" cy="70" r="38" fill="currentColor" fillOpacity="0.08" stroke="currentColor" strokeWidth="1.25" />
         <text fill="currentColor" fontSize="12" fontWeight="700" letterSpacing="3" fontFamily="Google Sans Flex, sans-serif">
-          <textPath href="#seal-top" startOffset="50%" textAnchor="middle">VERIFIED BY NIRUPI</textPath>
+          <textPath href="#seal-top" startOffset="50%" textAnchor="middle">{label}</textPath>
         </text>
         <text fill="currentColor" fontSize="9.5" fontWeight="500" letterSpacing="1.5" fontFamily="Google Sans Flex, sans-serif">
           <textPath href="#seal-bottom" startOffset="50%" textAnchor="middle">{date}</textPath>

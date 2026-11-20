@@ -112,7 +112,7 @@ Question to ask (paraphrase naturally for speech): ${q.question}`,
   // Deliberately NOT included: the expected-answer points. The examiner must never be able to
   // say the answer; grading against them happens later, on the server.
 
-  return `You are Nirupi, a warm, calm technical examiner running a short spoken viva. The student says they built the project below. Your job is to collect honest evidence of how well they understand their own code — not to teach, and not to trip them up.
+  return `You are Nirupi, a warm, calm technical interviewer running a short spoken viva for a company that is hiring. The candidate is a student talking about their own project below. Your job is to collect honest evidence of how deeply they understand it — not to teach, and not to trip them up.
 
 ${LANGUAGE_RULE}
 

@@ -4,7 +4,7 @@ import type { Analysis } from "./analyse.js";
 import type { BugHunt, BugResult } from "./bugHunt.js";
 
 /** Bump when scoring rules change so old cached reports are re-scored. */
-export const SCORING_VERSION = 6;
+export const SCORING_VERSION = 7;
 
 export interface QuestionScore {
   id: string;
@@ -128,7 +128,7 @@ const schema: Schema = {
   propertyOrdering: ["perQuestion", "skills", "communicationScore0to100", "highlights", "concerns", "englishTranscript"],
 };
 
-const SYSTEM = `You are a strict, impartial technical assessor. A student defended their own GitHub project in a spoken viva (3 questions about specific lines of their code), then did a short bug hunt. Grade ONLY what the STUDENT said, checked against the actual code.
+const SYSTEM = `You are a strict, impartial technical assessor helping a company hire. A student candidate discussed their own GitHub project in a spoken viva (3 questions about specific lines of their code), then did a short bug hunt. Grade ONLY what the STUDENT said, checked against the actual code.
 
 Critical rules:
 - Only the student's own words earn credit. Ignore everything the examiner (Nirupi) said. If the examiner explained an answer and the student merely agreed or repeated it, that earns at most 1.

@@ -19,7 +19,12 @@ export interface VivaDoc {
   stage: string;
   createdAt: string;
   updatedAt: string;
-  /** Which attempt this is for the same repo (1 = first). Retakes are visible to reviewers. */
+  /**
+   * practice: a student training on their own; the report is theirs alone and integrity rules only warn.
+   * assessment: for hiring; strict integrity rules and it appears in the company's hiring dashboard.
+   */
+  mode: VivaMode;
+  /** Which attempt this is for the same repo and mode (1 = first). Retakes are visible to reviewers. */
   attempt: number;
   questions: { id: string; file: string; line: number; question: string }[];
   /** Recorded by the server relay — the browser can't write these. */
@@ -38,6 +43,9 @@ export interface VivaDoc {
 /** Bug hunt time is measured on the server; a little grace covers network delay. */
 const GRACE_SECONDS = 15;
 
+export type VivaMode = "practice" | "assessment";
+export const vivaMode = (v: { mode?: string } | null | undefined): VivaMode => (v?.mode === "practice" ? "practice" : "assessment");
+
 export const vivaRouter = Router();
 
 /**
@@ -51,7 +59,8 @@ vivaRouter.post("/viva", async (req, res) => {
     if (!repo) return void res.status(404).json({ error: "We couldn't find that project. Try connecting it again." });
     if (!repo.analysis) return void res.status(409).json({ error: "Your questions aren't ready yet. Go back and let us finish reading your code." });
 
-    const previous = (await listDocs<VivaDoc>("vivas")).filter((v) => v.repoId === repo.id).length;
+    const mode = vivaMode(req.body);
+    const previous = (await listDocs<VivaDoc>("vivas")).filter((v) => v.repoId === repo.id && vivaMode(v) === mode).length;
     const now = new Date().toISOString();
     const viva: VivaDoc = {
       id: randomUUID(),
@@ -61,6 +70,7 @@ vivaRouter.post("/viva", async (req, res) => {
       stage: "warmup",
       createdAt: now,
       updatedAt: now,
+      mode,
       attempt: previous + 1,
       questions: repo.analysis.questions.map(({ id, file, line, question }) => ({ id, file, line, question })),
       turns: [],
@@ -72,6 +82,7 @@ vivaRouter.post("/viva", async (req, res) => {
     res.json({
       vivaId: viva.id,
       repoName: viva.repoName,
+      mode: viva.mode,
       attempt: viva.attempt,
       // File + line + nearby code for the progress rail. Question wording stays spoken-only.
       questions: repo.analysis.questions.map(({ id, file, line, excerpt }) => ({ id, file, line, excerpt })),

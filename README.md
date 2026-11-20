@@ -1,8 +1,25 @@
-# Nirupi: prove you built it
+# Nirupi: hire for real understanding
 
-A student pastes a public GitHub repo. Gemini reads the code and asks three questions about specific lines in a **live voice viva**, then hides one small bug in the student's own function for a 3-minute **bug hunt**. The result is a shareable report that scores **technical understanding** and **communication** separately, with the student's own words as evidence.
+**Nirupi helps companies hire skilful students and freshers by interviewing them on their own code.**
 
-Built with the Gemini API only: `gemini-3.8-flash` (with `gemini-3.5-flash-lite` / `gemini-3.1-flash-lite` fallbacks) for analysis and scoring, and `gemini-3.8-live` for voice.
+## The problem
+
+Hiring students is guesswork. CVs list the same courses, grades say little about engineering skill, and a GitHub link only shows that a project *exists*. Now that AI can write a whole project in an afternoon, a portfolio no longer shows whether the candidate understands what's in it. Teams end up spending engineer hours on first-round interviews just to find out.
+
+## What Nirupi does
+
+1. **The candidate connects a public GitHub repo.** Gemini reads the code and picks three specific lines worth discussing.
+2. **A live voice viva.** A calm AI interviewer asks *why* the code works the way it does and *what would break if* it changed, with adaptive follow-ups. Then the candidate fixes one small bug planted in their own function, explaining aloud, in three minutes.
+3. **The hiring team gets an evidence-backed report.** Technical understanding and communication are scored separately, so accent or fluency never lowers the technical score. Every score is backed by the candidate's own quotes, alongside git-history evidence and exam-integrity signals. All assessments land in a sortable **hiring dashboard**.
+
+Candidates can also **practise first**: the same viva, privately, with a "what to practise next" list. Practice reports are never shown to companies.
+
+**AI collects evidence; humans make hiring decisions.**
+
+## Built with Gemini
+
+- `gemini-3.8-flash` reads the code, writes the questions and the bug hunt, and scores the viva, all with structured JSON output. `gemini-3.5-flash-lite` and `gemini-3.1-flash-lite` are automatic fallbacks.
+- `gemini-3.8-live` runs the spoken interview, relayed through the server so transcripts can't be tampered with.
 
 ## Run it
 
@@ -37,6 +54,9 @@ For development with hot reload: `npm run dev` (web on :5180, API on :8080).
 - The voice viva needs WebSockets (`/api/live`) and the microphone (declared in `metadata.json`).
 - Don't move Gemini calls to the browser: transcripts and scores must stay server-side, so students can't tamper with them.
 
-## Integrity
+## Fair, hard-to-game assessments
 
-The voice session runs through the server, so transcripts are recorded server-side. Expected answers and the bug-hunt solution never reach the browser. The bug-hunt clock runs on the server. Tab switches, full-screen exits and paste attempts are recorded and shown neutrally. AI collects evidence; humans make hiring decisions.
+- The voice session runs through the server, so transcripts are recorded server-side and can't be edited from the browser. Only spoken answers are accepted.
+- Expected answers and the bug-hunt solution never reach the browser, and the bug-hunt clock runs on the server.
+- In an assessment, switching tabs or apps, leaving full screen, going back, or pasting into the editor counts as a violation. Two warnings, then the third ends the viva and flags the report. In practice mode these only warn.
+- Violations are reported neutrally as integrity signals, never as accusations.
